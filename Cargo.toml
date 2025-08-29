@@ -1,0 +1,8 @@
+[workspace]
+members = ["server", "client"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Poseidon <18646154381@163.com>"]
