@@ -7,3 +7,6 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Poseidon <18646154381@163.com>"]
 license = "MIT"
+
+[workspace.dependencies]
+quinn = "0.11.9"
