@@ -11,3 +11,7 @@ serde = { workspace = true }
 toml = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
+
+[[bin]]
+name = "gungs"
+path = "src/main.rs"
