@@ -9,4 +9,8 @@ authors = ["Poseidon <18646154381@163.com>"]
 license = "MIT"
 
 [workspace.dependencies]
-quinn = "0.11.9"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.9.5"
+anyhow = "1.0"
+tokio = { version = "1", features = ["full"] }
