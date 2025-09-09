@@ -10,10 +10,10 @@ pub use run::*;
 #[command(name = "gungs", version, about = "Gung server")]
 pub struct CliConfig {
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Command,
 }
 
 #[derive(Debug, Subcommand)]
-pub enum Commands {
+pub enum Command {
     Run { config_file_path: PathBuf },
 }
