@@ -6,3 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
+serde_json = { workspace = true }
+serde = { workspace = true }
+pyo3 = { workspace = true }
+pythonize = { workspace = true }

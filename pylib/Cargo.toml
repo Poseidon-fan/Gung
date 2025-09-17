@@ -11,3 +11,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 pyo3 = { workspace = true }
+auth = { path = "../components/auth" }
