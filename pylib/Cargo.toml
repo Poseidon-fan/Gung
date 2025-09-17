@@ -1,0 +1,13 @@
+[package]
+name = "pylib"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "gung"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { workspace = true }

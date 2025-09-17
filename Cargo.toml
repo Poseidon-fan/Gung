@@ -1,5 +1,5 @@
 [workspace]
-members = ["server", "client", "components/*"]
+members = ["server", "client", "components/*", "pylib"]
 resolver = "2"
 
 [workspace.package]
@@ -14,3 +14,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.9.5"
 anyhow = "1.0"
 tokio = { version = "1", features = ["full"] }
+pyo3 = { version = "0.26.0", features = [
+    "auto-initialize",
+    "extension-module",
+] }

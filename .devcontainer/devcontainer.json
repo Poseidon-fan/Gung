@@ -8,13 +8,16 @@
             "extensions": [
                 "rust-lang.rust-analyzer",
                 "vadimcn.vscode-lldb",
-                "tamasfe.even-better-toml"
+                "tamasfe.even-better-toml",
+                "ms-python.python"
             ],
             "settings": {
                 "editor.formatOnSave": true,
-                "rust-analyzer.check.command": "clippy"
+                "rust-analyzer.check.command": "clippy",
+                "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python"
             }
         }
     },
-    "remoteUser": "vscode"
+    "remoteUser": "vscode",
+    "postCreateCommand": "sh -x ${containerWorkspaceFolder}/.devcontainer/setup.sh"
 }
