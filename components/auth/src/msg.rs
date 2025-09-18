@@ -1,12 +1,19 @@
+// TODO(Poseidon): remove this after developing
+#![allow(dead_code)]
+
 use pyo3::{exceptions::PyValueError, prelude::*};
+use semver::Version;
 use serde_json::Value;
+use uuid::Uuid;
 
 #[pyclass]
+#[derive(Clone)]
 pub struct AuthReq {
     payload: Value,
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub enum AuthResp {
     Accept(AuthAcceptResp),
     Reject(AuthRejectResp),
@@ -14,16 +21,33 @@ pub enum AuthResp {
 }
 
 #[pyclass]
+pub struct AuthContext {
+    auth_id: String,
+    #[pyo3(get)]
+    auth_type: AuthType,
+    #[pyo3(get)]
+    requests: Vec<AuthReq>,
+    #[pyo3(get)]
+    responses: Vec<AuthResp>,
+    client_version: Version,
+}
+
+#[pyclass]
+#[derive(Clone)]
+pub enum AuthType {
+    Ping,
+    Connect,
+}
+
+#[pyclass]
 #[derive(Clone)]
 pub struct AuthAcceptResp {
-    #[pyo3(get)]
     msg: String,
 }
 
 #[pyclass]
 #[derive(Clone)]
 pub struct AuthRejectResp {
-    #[pyo3(get)]
     msg: String,
 }
 
@@ -49,7 +73,7 @@ impl AuthReq {
 #[pymethods]
 impl AuthAcceptResp {
     #[new]
-    fn new(msg: String) -> Self {
+    pub fn new(msg: String) -> Self {
         Self { msg }
     }
 }
@@ -69,6 +93,26 @@ impl AuthChallengeResp {
         Self {
             msg,
             required_fields,
+        }
+    }
+}
+
+#[pymethods]
+impl AuthContext {
+    #[getter]
+    fn client_version(&self) -> String {
+        self.client_version.to_string()
+    }
+}
+
+impl AuthContext {
+    fn new(auth_type: AuthType, client_version: Version) -> Self {
+        Self {
+            auth_id: Uuid::new_v4().to_string(),
+            auth_type,
+            requests: vec![],
+            responses: vec![],
+            client_version,
         }
     }
 }

@@ -10,3 +10,7 @@ serde_json = { workspace = true }
 serde = { workspace = true }
 pyo3 = { workspace = true }
 pythonize = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+semver = { workspace = true }
+uuid = { workspace = true }

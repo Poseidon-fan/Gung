@@ -21,3 +21,6 @@ pyo3 = { version = "0.26.0", features = [
     "serde",
 ] }
 pythonize = "0.26.0"
+async-trait = "0.1.89"
+semver = "1.0.27"
+uuid = { version = "1.18.1", features = ["v4"] }
