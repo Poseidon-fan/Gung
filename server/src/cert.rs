@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::{fs, io};
 use tracing::info;
 
-use quinn::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, pem::PemObject};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, pem::PemObject};
 
 #[allow(dead_code)]
 pub fn get_cert_key(

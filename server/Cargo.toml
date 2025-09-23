@@ -11,7 +11,7 @@ serde = { workspace = true }
 toml = { workspace = true }
 anyhow = { workspace = true }
 tokio = { workspace = true }
-quinn = { workspace = true }
+rustls = { workspace = true }
 directories-next = { workspace = true }
 rcgen = { workspace = true }
 tracing = { workspace = true }
