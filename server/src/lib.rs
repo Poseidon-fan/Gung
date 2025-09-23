@@ -1,5 +1,5 @@
+mod cert;
 pub mod config;
-mod tls;
 
 use anyhow::{Ok, Result};
 
