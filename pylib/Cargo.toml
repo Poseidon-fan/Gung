@@ -1,5 +1,5 @@
 [package]
-name = "pylib"
+name = "gung"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

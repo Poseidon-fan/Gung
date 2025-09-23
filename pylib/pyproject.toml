@@ -5,12 +5,16 @@ build-backend = "maturin"
 [project]
 name = "gung"
 version = "0.1.0"
+description = "Gung Python bindings"
+readme = "README.md"
 authors = [{ name = "Poseidon", email = "18646154381@163.com" }]
 license = "MIT"
-description = "Gung Python bindings"
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
 ]
+
+[tool.maturin]
+python-source = "python"
