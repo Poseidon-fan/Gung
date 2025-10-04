@@ -10,3 +10,4 @@ async-trait = { workspace = true }
 tokio = { workspace = true }
 anyhow = { workspace = true }
 quinn = { workspace = true }
+net-mux = { workspace = true }
