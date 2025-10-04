@@ -23,6 +23,18 @@ const ALPN_GUNG: &[&[u8]] = &[b"gung"];
 
 pub struct QuicTransport {}
 
+pub struct QuicConnection(quinn::Connection);
+
+pub struct QuicStream {
+    sender: quinn::SendStream,
+    receiver: quinn::RecvStream,
+}
+
+pub struct QuicRawConnection {
+    conn: quinn::Connection,
+    stream: QuicStream,
+}
+
 #[async_trait]
 impl Transport for QuicTransport {
     type Listener = quinn::Endpoint;
@@ -121,18 +133,6 @@ impl Transport for QuicTransport {
     ) -> anyhow::Result<Self::Connection> {
         Ok(QuicConnection(raw_conn.conn))
     }
-}
-
-pub struct QuicConnection(quinn::Connection);
-
-pub struct QuicStream {
-    sender: quinn::SendStream,
-    receiver: quinn::RecvStream,
-}
-
-pub struct QuicRawConnection {
-    conn: quinn::Connection,
-    stream: QuicStream,
 }
 
 impl AsyncRead for QuicRawConnection {
