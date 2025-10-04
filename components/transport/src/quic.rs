@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     pin::Pin,
@@ -21,7 +19,7 @@ use crate::{
 };
 use anyhow::anyhow;
 
-pub const ALPN_GUNG: &[&[u8]] = &[b"gung"];
+const ALPN_GUNG: &[&[u8]] = &[b"gung"];
 
 pub struct QuicTransport {}
 
