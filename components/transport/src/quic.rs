@@ -36,6 +36,7 @@ impl Transport for QuicTransport {
     type ClientOption = QuicTransportClientOption;
 
     async fn bind<T: ToSocketAddrs + Send>(
+        &self,
         addr: T,
         option: Self::ServerOption,
     ) -> anyhow::Result<Self::Listener> {
@@ -56,7 +57,10 @@ impl Transport for QuicTransport {
         )?)
     }
 
-    async fn accept(l: &mut Self::Listener) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
+    async fn accept(
+        &self,
+        l: &Self::Listener,
+    ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
         let connection = l
             .accept()
             .await
@@ -75,6 +79,7 @@ impl Transport for QuicTransport {
     }
 
     async fn connect<T: ToSocketAddrs + Send>(
+        &self,
         addr: T,
         option: Self::ClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
@@ -112,6 +117,7 @@ impl Transport for QuicTransport {
     }
 
     fn establish(
+        &self,
         raw_conn: Self::RawConnection,
         _is_server: bool,
     ) -> anyhow::Result<Self::Connection> {
