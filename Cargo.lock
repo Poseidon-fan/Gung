@@ -1377,6 +1377,8 @@ dependencies = [
  "async-trait",
  "net-mux",
  "quinn",
+ "rustls",
+ "rustls-native-certs",
  "tokio",
 ]
 

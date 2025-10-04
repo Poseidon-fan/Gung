@@ -11,3 +11,5 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 quinn = { workspace = true }
 net-mux = { workspace = true }
+rustls = { workspace = true }
+rustls-native-certs = { workspace = true }
