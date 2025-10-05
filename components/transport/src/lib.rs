@@ -3,12 +3,15 @@ mod quic;
 mod tcp;
 
 pub use quic::*;
+pub use tcp::*;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
+
+use crate::option::{TransportClientOption, TransportServerOption};
 
 #[async_trait]
 pub trait Transport: Send + Sync {
@@ -17,19 +20,16 @@ pub trait Transport: Send + Sync {
     type Connection: LogicConnection<Stream = Self::Channel>;
     type Channel: Send + Sync + AsyncRead + AsyncWrite + Unpin;
 
-    type ServerOption;
-    type ClientOption;
-
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: Self::ServerOption,
+        option: TransportServerOption,
     ) -> Result<Self::Listener>;
     async fn accept(&self, l: &Self::Listener) -> Result<(Self::RawConnection, SocketAddr)>;
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: Self::ClientOption,
+        option: TransportClientOption,
     ) -> Result<Self::RawConnection>;
     fn establish(&self, raw_conn: Self::RawConnection, is_server: bool)
     -> Result<Self::Connection>;

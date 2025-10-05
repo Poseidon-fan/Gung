@@ -15,7 +15,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 use crate::{
     LogicConnection, Transport,
-    option::{QuicTransportClientOption, QuicTransportServerOption, TlsServerOption},
+    option::{TlsServerOption, TransportClientOption, TransportServerOption},
 };
 use anyhow::anyhow;
 
@@ -42,15 +42,15 @@ impl Transport for QuicTransport {
     type Connection = QuicConnection;
     type Channel = QuicStream;
 
-    type ServerOption = QuicTransportServerOption;
-    type ClientOption = QuicTransportClientOption;
-
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: Self::ServerOption,
+        option: TransportServerOption,
     ) -> anyhow::Result<Self::Listener> {
-        let TlsServerOption { cert, key } = option.tls;
+        let TransportServerOption::Quic(quic_option) = option else {
+            return Err(anyhow!("Expected Quic transport option"));
+        };
+        let TlsServerOption { cert, key } = quic_option.tls;
 
         let mut server_crypto = rustls::ServerConfig::builder()
             .with_no_client_auth()
@@ -91,18 +91,25 @@ impl Transport for QuicTransport {
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: Self::ClientOption,
+        option: TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let socket_addr = addr.to_socket_addrs()?.next().unwrap();
         let default_hostname = socket_addr.ip().to_string();
-        let hostname = option.tls.hostname.as_ref().unwrap_or(&default_hostname);
+        let TransportClientOption::Quic(quic_option) = option else {
+            return Err(anyhow!("Expected Quic transport option"));
+        };
+        let hostname = quic_option
+            .tls
+            .hostname
+            .as_ref()
+            .unwrap_or(&default_hostname);
 
         let mut roots = RootCertStore::empty();
         for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs")
         {
             roots.add(cert).unwrap();
         }
-        if let Some(cert) = option.tls.cert {
+        if let Some(cert) = quic_option.tls.cert {
             for cert in cert {
                 roots.add(cert).unwrap();
             }
@@ -132,6 +139,21 @@ impl Transport for QuicTransport {
         _is_server: bool,
     ) -> anyhow::Result<Self::Connection> {
         Ok(QuicConnection(raw_conn.conn))
+    }
+}
+
+#[async_trait]
+impl LogicConnection for QuicConnection {
+    type Stream = QuicStream;
+
+    async fn accept(&self) -> anyhow::Result<Self::Stream> {
+        let (sender, receiver) = self.0.accept_bi().await?;
+        Ok(QuicStream { sender, receiver })
+    }
+
+    async fn open(&self) -> anyhow::Result<Self::Stream> {
+        let (sender, receiver) = self.0.open_bi().await?;
+        Ok(QuicStream { sender, receiver })
     }
 }
 
@@ -165,21 +187,6 @@ impl AsyncWrite for QuicRawConnection {
         cx: &mut Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         Pin::new(&mut self.get_mut().stream.sender).poll_shutdown(cx)
-    }
-}
-
-#[async_trait]
-impl LogicConnection for QuicConnection {
-    type Stream = QuicStream;
-
-    async fn accept(&self) -> anyhow::Result<Self::Stream> {
-        let (sender, receiver) = self.0.accept_bi().await?;
-        Ok(QuicStream { sender, receiver })
-    }
-
-    async fn open(&self) -> anyhow::Result<Self::Stream> {
-        let (sender, receiver) = self.0.open_bi().await?;
-        Ok(QuicStream { sender, receiver })
     }
 }
 
