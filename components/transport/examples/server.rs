@@ -94,7 +94,15 @@ async fn handle_connection(conn: impl LogicConnection) -> Result<()> {
         let stream = conn.accept().await?;
         println!("accepted stream");
         let (mut reader, mut writer) = io::split(stream);
-        io::copy(&mut reader, &mut writer).await?;
+
+        let mut buf = vec![0; 1024];
+        let n = reader.read(&mut buf).await?;
+        if n == 0 {
+            println!("remote closed");
+            return Err(anyhow::anyhow!("remote closed"));
+        }
+        writer.write_all(&buf).await?;
+
         println!("finish stream");
     }
 }
