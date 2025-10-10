@@ -87,6 +87,7 @@ async fn handle_connection(conn: impl LogicConnection) -> Result<()> {
         stream
             .write_all(format!("This is Sream {i}").as_bytes())
             .await?;
+        stream.flush().await?;
         let mut buf = vec![0; 1024];
         let n = stream.read(&mut buf).await?;
         if n == 0 {

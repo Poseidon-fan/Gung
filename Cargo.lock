@@ -549,8 +549,8 @@ dependencies = [
 
 [[package]]
 name = "net-mux"
-version = "0.1.5"
-source = "git+https://github.com/Poseidon-fan/net-mux#bb13f10849851047fb1ce7d40567af4c6f40e3a7"
+version = "0.2.0"
+source = "git+https://github.com/Poseidon-fan/net-mux#5e421607d594584fa822a31d5733bed9e2756ffe"
 dependencies = [
  "bitflags",
  "futures-util",
