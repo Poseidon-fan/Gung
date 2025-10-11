@@ -10,7 +10,7 @@ use crate::msg::*;
 pub use impls::*;
 
 #[async_trait]
-pub trait Authenticate {
+pub trait Authenticator {
     async fn authenticate(&self, ctx: AuthContext) -> Result<AuthResp>;
 }
 

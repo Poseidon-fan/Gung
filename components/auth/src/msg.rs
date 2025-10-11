@@ -3,13 +3,13 @@
 
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
-use serde_json::Value;
+use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 #[pyclass]
 #[derive(Clone)]
 pub struct AuthReq {
-    payload: Value,
+    payload: JsonValue,
 }
 
 #[pyclass]

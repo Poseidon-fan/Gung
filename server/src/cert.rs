@@ -68,7 +68,7 @@ fn generate_self_signed_cert_key() -> Result<(Vec<CertificateDer<'static>>, Priv
             (cert, key.into())
         }
         Err(e) => {
-            bail!("failed to read certificate: {}", e);
+            bail!("failed to read certificate: {e}");
         }
     };
 
