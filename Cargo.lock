@@ -842,6 +842,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_set"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b50c614540fcc35e8506d2afc295d52b1136c0e5c8d49087c7bc296075a0891"
+dependencies = [
+ "rand",
+]
+
+[[package]]
 name = "rcgen"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -954,7 +963,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1098,6 +1107,8 @@ dependencies = [
  "anyhow",
  "clap",
  "directories-next",
+ "parking_lot",
+ "rand_set",
  "rcgen",
  "rustls",
  "serde",

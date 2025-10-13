@@ -31,3 +31,5 @@ rcgen = "0.14"
 tracing = "0.1"
 net-mux = { git = "https://github.com/Poseidon-fan/net-mux" }
 rustls-native-certs = "0.8.1"
+rand_set = "0.1.2"
+parking_lot = "0.12.5"

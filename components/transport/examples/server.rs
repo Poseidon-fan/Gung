@@ -39,7 +39,7 @@ async fn handle_quic() -> Result<()> {
 
     loop {
         let (mut raw_conn, remote_addr) = t.accept(&listener).await?;
-        println!("accepted connection from {}", remote_addr);
+        println!("accepted connection from {remote_addr}");
 
         raw_conn.write_all(b"write by raw_conn").await?;
         let mut buf = vec![0; 1024];
@@ -70,7 +70,7 @@ async fn handle_tcp() -> Result<()> {
 
     loop {
         let (mut raw_conn, remote_addr) = t.accept(&listener).await?;
-        println!("accepted connection from {}", remote_addr);
+        println!("accepted connection from {remote_addr}");
 
         raw_conn.write_all(b"write by raw_conn").await?;
         let mut buf = vec![0; 1024];
