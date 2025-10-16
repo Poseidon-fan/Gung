@@ -17,6 +17,7 @@ rcgen = { workspace = true }
 tracing = { workspace = true }
 rand_set = { workspace = true }
 parking_lot = { workspace = true }
+transport = { path = "../components/transport" }
 
 [[bin]]
 name = "gungs"

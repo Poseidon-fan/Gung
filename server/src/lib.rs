@@ -1,6 +1,8 @@
+#![allow(dead_code)]
 mod cert;
 pub mod config;
 mod port;
+mod proxy;
 
 use anyhow::{Ok, Result};
 
