@@ -3,6 +3,7 @@ mod cert;
 pub mod config;
 mod port;
 mod proxy;
+mod service;
 
 use anyhow::{Ok, Result};
 

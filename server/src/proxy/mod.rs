@@ -1,4 +1,6 @@
-use std::sync::Arc;
+mod tcp;
+
+use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -13,7 +15,9 @@ use transport::LogicConnection;
 pub trait Proxy: 'static {
     type Request: Send;
 
-    async fn handle_one<T: AsyncRead + AsyncWrite>(&self, req: Self::Request, channel: T);
+    async fn handle_one<T>(&self, req: Self::Request, channel: T)
+    where
+        T: AsyncRead + AsyncWrite + Send + Unpin;
 
     async fn run<T: LogicConnection>(
         self: Arc<Self>,
@@ -55,18 +59,18 @@ pub struct ProxyHandle<T: Proxy> {
 }
 
 #[async_trait]
-pub trait Gateway: 'static + Sync + Send {
+pub trait Gateway: 'static {
     type RawStream: Send;
     type Proxy: Proxy;
 
-    async fn accept(&self) -> Option<Self::RawStream>;
+    async fn accept(&self) -> Result<(Self::RawStream, SocketAddr)>;
 
     async fn upgrade(raw_stream: Self::RawStream) -> Result<<Self::Proxy as Proxy>::Request>;
 
     async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request);
 
-    async fn listen(self: Arc<Self>) {
-        while let Some(raw_stream) = self.accept().await {
+    async fn run(self: Arc<Self>) {
+        while let Ok((raw_stream, _)) = self.accept().await {
             let this = self.clone();
             tokio::spawn(async move {
                 let req = Self::upgrade(raw_stream).await.unwrap();
@@ -74,6 +78,4 @@ pub trait Gateway: 'static + Sync + Send {
             });
         }
     }
-
-    async fn register(&self, proxy: Arc<Self::Proxy>);
 }
