@@ -8,12 +8,10 @@ use tokio::io;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use transport::LogicConnection;
 use transport::QuicTransport;
+use transport::QuicTransportServerOption;
 use transport::TcpTransport;
+use transport::TcpTransportServerOption;
 use transport::Transport;
-use transport::option::QuicTransportServerOption;
-use transport::option::TcpTransportServerOption;
-use transport::option::TlsServerOption;
-use transport::option::TransportServerOption;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,13 +24,11 @@ async fn handle_quic() -> Result<()> {
     let listener = t
         .bind(
             "127.0.0.1:7777",
-            TransportServerOption::Quic(QuicTransportServerOption {
-                tls: TlsServerOption {
-                    cert: CertificateDer::pem_file_iter("./.cert/cert.pem")?
-                        .collect::<Result<_, _>>()?,
-                    key: PrivateKeyDer::from_pem_file("./.cert/key.pem").unwrap(),
-                },
-            }),
+            QuicTransportServerOption {
+                cert: CertificateDer::pem_file_iter("./.cert/cert.pem")?
+                    .collect::<Result<_, _>>()?,
+                key: PrivateKeyDer::from_pem_file("./.cert/key.pem").unwrap(),
+            },
         )
         .await?;
     println!("listener bound");
@@ -61,10 +57,7 @@ async fn handle_quic() -> Result<()> {
 async fn handle_tcp() -> Result<()> {
     let t = TcpTransport {};
     let listener = t
-        .bind(
-            "127.0.0.1:7777",
-            TransportServerOption::Tcp(TcpTransportServerOption {}),
-        )
+        .bind("127.0.0.1:7777", TcpTransportServerOption {})
         .await?;
     println!("listener bound");
 

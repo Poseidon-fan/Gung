@@ -10,13 +10,13 @@ use quinn::{
     Endpoint,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
 };
-use rustls::RootCertStore;
+use rustls::{
+    RootCertStore,
+    pki_types::{CertificateDer, PrivateKeyDer},
+};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
-use crate::{
-    LogicConnection, Transport,
-    option::{TlsServerOption, TransportClientOption, TransportServerOption},
-};
+use crate::{LogicConnection, Transport};
 use anyhow::anyhow;
 
 const ALPN_GUNG: &[&[u8]] = &[b"gung"];
@@ -35,26 +35,33 @@ pub struct QuicRawConnection {
     stream: QuicStream,
 }
 
+pub struct QuicTransportClientOption {
+    pub cert: Option<Vec<CertificateDer<'static>>>,
+    pub hostname: Option<String>,
+}
+
+pub struct QuicTransportServerOption {
+    pub cert: Vec<CertificateDer<'static>>,
+    pub key: PrivateKeyDer<'static>,
+}
+
 #[async_trait]
 impl Transport for QuicTransport {
     type Listener = quinn::Endpoint;
     type RawConnection = QuicRawConnection;
     type Connection = QuicConnection;
     type Channel = QuicStream;
+    type TransportClientOption = QuicTransportClientOption;
+    type TransportServerOption = QuicTransportServerOption;
 
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: TransportServerOption,
+        option: Self::TransportServerOption,
     ) -> anyhow::Result<Self::Listener> {
-        let TransportServerOption::Quic(quic_option) = option else {
-            return Err(anyhow!("Expected Quic transport option"));
-        };
-        let TlsServerOption { cert, key } = quic_option.tls;
-
         let mut server_crypto = rustls::ServerConfig::builder()
             .with_no_client_auth()
-            .with_single_cert(cert, key)?;
+            .with_single_cert(option.cert, option.key)?;
         server_crypto.alpn_protocols = ALPN_GUNG.iter().map(|&x| x.into()).collect();
         let mut server_config =
             quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(server_crypto)?));
@@ -91,25 +98,22 @@ impl Transport for QuicTransport {
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        option: TransportClientOption,
+        option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let socket_addr = addr.to_socket_addrs()?.next().unwrap();
         let default_hostname = socket_addr.ip().to_string();
-        let TransportClientOption::Quic(quic_option) = option else {
-            return Err(anyhow!("Expected Quic transport option"));
-        };
-        let hostname = quic_option
-            .tls
+        let hostname = option
             .hostname
             .as_ref()
-            .unwrap_or(&default_hostname);
+            .unwrap_or(&default_hostname)
+            .to_string();
 
         let mut roots = RootCertStore::empty();
         for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs")
         {
             roots.add(cert).unwrap();
         }
-        if let Some(cert) = quic_option.tls.cert {
+        if let Some(cert) = option.cert {
             for cert in cert {
                 roots.add(cert).unwrap();
             }
@@ -123,7 +127,7 @@ impl Transport for QuicTransport {
         let mut endpoint = quinn::Endpoint::client("[::]:0".parse().unwrap())?;
         endpoint.set_default_client_config(client_config);
 
-        let connection = endpoint.connect(socket_addr, hostname)?.await?;
+        let connection = endpoint.connect(socket_addr, &hostname)?.await?;
         let (sender, receiver) = connection.open_bi().await.map_err(anyhow::Error::from)?;
         let stream = QuicStream { sender, receiver };
 

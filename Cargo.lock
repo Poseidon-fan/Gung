@@ -1105,6 +1105,7 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "clap",
  "directories-next",
  "parking_lot",

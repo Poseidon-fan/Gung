@@ -5,12 +5,10 @@ use rustls::pki_types::pem::PemObject;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use transport::LogicConnection;
 use transport::QuicTransport;
+use transport::QuicTransportClientOption;
 use transport::TcpTransport;
+use transport::TcpTransportClientOption;
 use transport::Transport;
-use transport::option::QuicTransportClientOption;
-use transport::option::TcpTransportClientOption;
-use transport::option::TlsClientOption;
-use transport::option::TransportClientOption;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -24,15 +22,12 @@ async fn handle_quic() -> Result<()> {
     let mut raw_conn = t
         .connect(
             "127.0.0.1:7777",
-            TransportClientOption::Quic(QuicTransportClientOption {
-                tls: TlsClientOption {
-                    cert: Some(
-                        CertificateDer::pem_file_iter("./.cert/cert.pem")?
-                            .collect::<Result<_, _>>()?,
-                    ),
-                    hostname: Some("localhost".to_string()),
-                },
-            }),
+            QuicTransportClientOption {
+                cert: Some(
+                    CertificateDer::pem_file_iter("./.cert/cert.pem")?.collect::<Result<_, _>>()?,
+                ),
+                hostname: Some("localhost".to_string()),
+            },
         )
         .await?;
     println!("connected to server");
@@ -57,10 +52,7 @@ async fn handle_tcp() -> Result<()> {
     let t = TcpTransport {};
 
     let mut raw_conn = t
-        .connect(
-            "127.0.0.1:7777",
-            TransportClientOption::Tcp(TcpTransportClientOption {}),
-        )
+        .connect("127.0.0.1:7777", TcpTransportClientOption {})
         .await?;
     println!("connected to server");
     raw_conn.write_all(b"write by raw_conn").await?;

@@ -3,12 +3,13 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use async_trait::async_trait;
 use tokio::net::{TcpListener, TcpStream};
 
-use crate::{
-    LogicConnection, Transport,
-    option::{TransportClientOption, TransportServerOption},
-};
+use crate::{LogicConnection, Transport};
 
 pub struct TcpTransport {}
+
+pub struct TcpTransportClientOption {}
+
+pub struct TcpTransportServerOption {}
 
 #[async_trait]
 impl Transport for TcpTransport {
@@ -16,11 +17,13 @@ impl Transport for TcpTransport {
     type RawConnection = TcpStream;
     type Connection = net_mux::Session<TcpStream>;
     type Channel = net_mux::Stream;
+    type TransportClientOption = TcpTransportClientOption;
+    type TransportServerOption = TcpTransportServerOption;
 
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        _option: TransportServerOption,
+        _option: Self::TransportServerOption,
     ) -> anyhow::Result<Self::Listener> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
         TcpListener::bind(addr).await.map_err(anyhow::Error::from)
@@ -37,7 +40,7 @@ impl Transport for TcpTransport {
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        _option: TransportClientOption,
+        _option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
         TcpStream::connect(addr).await.map_err(anyhow::Error::from)
