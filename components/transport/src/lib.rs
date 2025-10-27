@@ -36,7 +36,7 @@ pub trait Transport: Send + Sync {
 
 #[async_trait]
 pub trait LogicConnection: Send + Sync {
-    type Stream: Send + Sync + AsyncRead + AsyncWrite + Unpin;
+    type Stream: Send + Sync + AsyncRead + AsyncWrite + Unpin + 'static;
 
     async fn accept(&self) -> Result<Self::Stream>;
     async fn open(&self) -> Result<Self::Stream>;
