@@ -9,6 +9,7 @@
                 "rust-lang.rust-analyzer",
                 "vadimcn.vscode-lldb",
                 "tamasfe.even-better-toml",
+                "serayuzgur.crates",
                 "ms-python.python"
             ],
             "settings": {
