@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use parking_lot::Mutex;
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
@@ -13,7 +14,7 @@ pub struct TcpProxy {}
 
 pub struct TcpGateway {
     listener: TcpListener,
-    proxy_handle: ProxyHandle<TcpProxy>,
+    proxy_handle: Mutex<Option<ProxyHandle<TcpProxy>>>,
 }
 
 #[async_trait]
@@ -33,6 +34,16 @@ impl Gateway for TcpGateway {
     type RawStream = TcpStream;
     type Proxy = TcpProxy;
 
+    async fn bind(addr: SocketAddr) -> Result<Self> {
+        TcpListener::bind(addr)
+            .await
+            .map_err(anyhow::Error::from)
+            .map(|listener| Self {
+                listener,
+                proxy_handle: Mutex::new(None),
+            })
+    }
+
     async fn accept(&self) -> Result<(Self::RawStream, SocketAddr)> {
         self.listener.accept().await.map_err(anyhow::Error::from)
     }
@@ -42,6 +53,22 @@ impl Gateway for TcpGateway {
     }
 
     async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request) {
-        let _ = self.proxy_handle.req_tx.send(req);
+        let _ = self.proxy_handle.lock().as_ref().unwrap().req_tx.send(req);
+    }
+
+    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>) {
+        *self.proxy_handle.lock() = Some(handle);
+    }
+
+    fn remove_proxy(&self, proxy_id: String) {
+        let handle = self.proxy_handle.lock().take();
+        if let Some(handle) = handle {
+            debug_assert_eq!(handle.proxy_id, proxy_id);
+            let _ = handle.internal_shutdown_tx.send(());
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.proxy_handle.lock().is_none()
     }
 }
