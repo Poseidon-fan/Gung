@@ -1,4 +1,4 @@
-mod tcp;
+pub mod tcp;
 
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 

@@ -1,3 +1,5 @@
+use std::net::SocketAddr;
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -6,14 +8,24 @@ pub struct RunConfig {
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum TransportConfig {
-    Quic(QuicTransportConfig),
-    Tcp(TcpTransportConfig),
+pub struct TransportConfig {
+    pub addr: SocketAddr,
+
+    #[serde(flatten)]
+    pub protocol: ProtocolConfig,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct QuicTransportConfig {}
+#[serde(tag = "type")]
+pub enum ProtocolConfig {
+    #[serde(rename = "tcp")]
+    Tcp(TcpTransportConfig),
+    #[serde(rename = "quic")]
+    Quic(QuicTransportConfig),
+}
 
 #[derive(Debug, Deserialize)]
 pub struct TcpTransportConfig {}
+
+#[derive(Debug, Deserialize)]
+pub struct QuicTransportConfig {}
