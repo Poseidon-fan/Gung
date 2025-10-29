@@ -8,9 +8,10 @@ use async_trait::async_trait;
 use config::server::{AuthConfig, AuthenticatorConfig};
 use pyo3::prelude::*;
 
-use crate::{authenticator::pass::PassAuthenticator, msg::*};
+use crate::authenticator::pass::PassAuthenticator;
 
 pub use authenticator::*;
+pub use msg::*;
 
 #[async_trait]
 pub trait Authenticator: Sync + Send {

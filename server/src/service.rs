@@ -34,7 +34,6 @@ impl<T: Transport> Service<T> {
     }
 
     pub async fn run(&mut self, transport_option: T::TransportServerOption) -> Result<()> {
-        #[allow(unused_variables)]
         let listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)

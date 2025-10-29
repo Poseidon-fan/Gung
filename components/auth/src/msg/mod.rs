@@ -1,19 +1,20 @@
-// TODO(Poseidon): remove this after developing
 #![allow(dead_code)]
+mod codec;
 
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthReq {
     payload: JsonValue,
 }
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthResp {
     Accept(AuthAcceptResp),
     Reject(AuthRejectResp),
@@ -34,25 +35,26 @@ pub struct AuthContext {
 
 #[pyclass]
 #[derive(Clone)]
+#[repr(u8)]
 pub enum AuthType {
     Ping,
     Connect,
 }
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthAcceptResp {
     msg: String,
 }
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthRejectResp {
     msg: String,
 }
 
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthChallengeResp {
     #[pyo3(get)]
     msg: String,
