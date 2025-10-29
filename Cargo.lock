@@ -75,6 +75,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "config",
  "pyo3",
  "pythonize",
  "semver",
@@ -1057,6 +1058,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "auth",
  "clap",
  "config",
  "directories-next",

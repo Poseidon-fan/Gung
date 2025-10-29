@@ -1,17 +1,26 @@
 mod authenticator;
 mod msg;
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
+use config::server::{AuthConfig, AuthenticatorConfig};
 use pyo3::prelude::*;
 
-use crate::msg::*;
+use crate::{authenticator::pass::PassAuthenticator, msg::*};
 
 pub use authenticator::*;
 
 #[async_trait]
 pub trait Authenticator {
     async fn authenticate(&self, ctx: AuthContext) -> Result<AuthResp>;
+}
+
+pub fn from(config: &AuthConfig) -> Result<Arc<dyn Authenticator>> {
+    match config.authenticator {
+        AuthenticatorConfig::Pass => Ok(Arc::new(PassAuthenticator::new())),
+    }
 }
 
 pub fn register_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
