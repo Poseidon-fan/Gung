@@ -1,4 +1,4 @@
-mod impls;
+mod authenticator;
 mod msg;
 
 use anyhow::Result;
@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 
 use crate::msg::*;
 
-pub use impls::*;
+pub use authenticator::*;
 
 #[async_trait]
 pub trait Authenticator {
