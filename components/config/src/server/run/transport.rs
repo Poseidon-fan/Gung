@@ -7,7 +7,7 @@ pub struct TransportConfig {
     #[serde(default = "default_addr")]
     pub addr: SocketAddr,
 
-    #[serde(flatten, default)]
+    #[serde(flatten)]
     pub protocol: ProtocolConfig,
 }
 
@@ -18,12 +18,6 @@ pub enum ProtocolConfig {
     Tcp(TcpTransportConfig),
     #[serde(rename = "quic")]
     Quic(QuicTransportConfig),
-}
-
-impl Default for ProtocolConfig {
-    fn default() -> Self {
-        ProtocolConfig::Quic(QuicTransportConfig::default())
-    }
 }
 
 #[derive(Debug, Deserialize)]
