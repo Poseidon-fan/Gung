@@ -15,7 +15,7 @@ pub use msg::*;
 
 #[async_trait]
 pub trait Authenticator: Sync + Send {
-    async fn authenticate(&self, ctx: AuthContext) -> Result<AuthResp>;
+    async fn authenticate(&self, ctx: &AuthContext) -> Result<AuthResp>;
 }
 
 pub fn from(config: &AuthConfig) -> Result<Arc<dyn Authenticator>> {

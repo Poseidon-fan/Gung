@@ -7,10 +7,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use uuid::Uuid;
 
+pub use codec::*;
+
 #[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthReq {
-    payload: JsonValue,
+    pub payload: JsonValue,
 }
 
 #[pyclass]
@@ -23,13 +25,13 @@ pub enum AuthResp {
 
 #[pyclass]
 pub struct AuthContext {
-    auth_id: String,
+    pub auth_id: String,
     #[pyo3(get)]
-    auth_type: AuthType,
+    pub auth_type: AuthType,
     #[pyo3(get)]
-    requests: Vec<AuthReq>,
+    pub requests: Vec<AuthReq>,
     #[pyo3(get)]
-    responses: Vec<AuthResp>,
+    pub responses: Vec<AuthResp>,
     client_version: Version,
 }
 
@@ -108,13 +110,25 @@ impl AuthContext {
 }
 
 impl AuthContext {
-    fn new(auth_type: AuthType, client_version: Version) -> Self {
+    pub fn new(auth_type: AuthType, client_version: Version, req: AuthReq) -> Self {
         Self {
             auth_id: Uuid::new_v4().to_string(),
             auth_type,
-            requests: vec![],
+            requests: vec![req],
             responses: vec![],
             client_version,
+        }
+    }
+}
+
+impl TryFrom<u8> for AuthType {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(AuthType::Ping),
+            1 => Ok(AuthType::Connect),
+            _ => Err(anyhow::anyhow!("invalid auth_type: {}", value)),
         }
     }
 }

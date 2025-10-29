@@ -18,6 +18,9 @@ tracing = { workspace = true }
 rand_set = { workspace = true }
 parking_lot = { workspace = true }
 async-trait = { workspace = true }
+tokio-util = { workspace = true }
+futures-util = { workspace = true }
+semver = { workspace = true }
 transport = { path = "../components/transport" }
 config = { path = "../components/config" }
 auth = { path = "../components/auth" }

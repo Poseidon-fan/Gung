@@ -17,7 +17,7 @@ impl PassAuthenticator {
 
 #[async_trait]
 impl Authenticator for PassAuthenticator {
-    async fn authenticate(&self, _ctx: AuthContext) -> Result<AuthResp> {
+    async fn authenticate(&self, _ctx: &AuthContext) -> Result<AuthResp> {
         Ok(AuthResp::Accept(AuthAcceptResp::new("pass".to_string())))
     }
 }

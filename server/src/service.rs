@@ -2,8 +2,13 @@ use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::Result;
 
-use auth::Authenticator;
+use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, AuthType, Authenticator};
 use config::server::RunConfig;
+use futures_util::{SinkExt, StreamExt};
+use semver::Version;
+use tokio::io;
+use tokio_util::codec::{FramedRead, FramedWrite};
+
 use transport::Transport;
 
 use crate::proxy::{GatewayManager, tcp::TcpGateway};
@@ -51,11 +56,73 @@ impl<T: Transport> Service<T> {
     }
 }
 
-#[allow(unused_variables)]
 async fn handle_connection<T: Transport>(
-    raw_conn: T::RawConnection,
+    mut raw_conn: T::RawConnection,
     remote_addr: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
 ) -> Result<()> {
-    todo!()
+    // Authenticate the connection
+    let (auth_type, _) = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
+
+    match auth_type {
+        AuthType::Ping => {
+            todo!()
+        }
+        AuthType::Connect => {
+            todo!()
+        }
+    }
+}
+
+async fn authenticate<T: Transport>(
+    raw_conn: &mut T::RawConnection,
+    // TODO(Poseidon): may support banning addr
+    _: SocketAddr,
+    authenticator: Arc<dyn Authenticator>,
+) -> Result<(AuthType, String)> {
+    let (req_reader, resp_writer) = io::split(raw_conn);
+    let mut req_reader = FramedRead::new(req_reader, AuthReqCodec);
+    let mut resp_writer = FramedWrite::new(resp_writer, AuthRespCodec);
+
+    // Read the first request and construct the context
+    let req = req_reader
+        .next()
+        .await
+        .ok_or(anyhow::anyhow!("failed to read first request"))??;
+    let version = req.payload["version"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("version is required"))?
+        .parse::<Version>()?;
+    let auth_type = req.payload["auth_type"]
+        .as_u64()
+        .map(|v| v as u8)
+        .ok_or(anyhow::anyhow!("auth_type is required"))?
+        .try_into()?;
+
+    let mut context = AuthContext::new(auth_type, version, req);
+
+    loop {
+        let resp = authenticator.authenticate(&context).await?;
+        match &resp {
+            AuthResp::Accept(_) => {
+                resp_writer.send(resp).await?;
+                return Ok((context.auth_type, context.auth_id.clone()));
+            }
+            AuthResp::Reject(_) => {
+                resp_writer.send(resp).await?;
+                return Err(anyhow::anyhow!("authentication rejected"));
+            }
+            AuthResp::Challenge(_) => {
+                // TODO(Poseidon): maybe need not to clone the resp here ?
+                resp_writer.send(resp.clone()).await?;
+                context.responses.push(resp);
+                context.requests.push(
+                    req_reader
+                        .next()
+                        .await
+                        .ok_or(anyhow::anyhow!("failed to read next request"))??,
+                );
+            }
+        }
+    }
 }
