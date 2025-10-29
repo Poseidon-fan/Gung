@@ -13,7 +13,7 @@ use crate::{authenticator::pass::PassAuthenticator, msg::*};
 pub use authenticator::*;
 
 #[async_trait]
-pub trait Authenticator {
+pub trait Authenticator: Sync + Send {
     async fn authenticate(&self, ctx: AuthContext) -> Result<AuthResp>;
 }
 

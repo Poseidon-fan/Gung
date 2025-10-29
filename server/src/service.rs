@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::Result;
 
@@ -41,8 +41,22 @@ impl<T: Transport> Service<T> {
             .await?;
 
         loop {
-            let (_, remote_addr) = self.transport.accept(&listener).await?;
-            println!("accepted connection from {remote_addr}");
+            let (raw_conn, remote_addr) = self.transport.accept(&listener).await?;
+            let authenticator = self.authenticator.clone();
+            tokio::spawn(async move {
+                if let Err(e) = handle_connection::<T>(raw_conn, remote_addr, authenticator).await {
+                    eprintln!("Connection handling error from {}: {:?}", remote_addr, e);
+                }
+            });
         }
     }
+}
+
+#[allow(unused_variables)]
+async fn handle_connection<T: Transport>(
+    raw_conn: T::RawConnection,
+    remote_addr: SocketAddr,
+    authenticator: Arc<dyn Authenticator>,
+) -> Result<()> {
+    todo!()
 }

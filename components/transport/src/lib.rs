@@ -14,7 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 #[async_trait]
 pub trait Transport: Send + Sync {
     type Listener: Send + Sync;
-    type RawConnection: Send + Sync + AsyncRead + AsyncWrite + Unpin;
+    type RawConnection: Send + Sync + AsyncRead + AsyncWrite + Unpin + 'static;
     type Connection: LogicConnection<Stream = Self::Channel>;
     type Channel: Send + Sync + AsyncRead + AsyncWrite + Unpin;
     type TransportClientOption;
