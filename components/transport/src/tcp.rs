@@ -1,6 +1,8 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
+use anyhow::anyhow;
 use async_trait::async_trait;
+use config::server::{ProtocolConfig, TransportConfig};
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::{LogicConnection, Transport};
@@ -19,6 +21,13 @@ impl Transport for TcpTransport {
     type Channel = net_mux::Stream;
     type TransportClientOption = TcpTransportClientOption;
     type TransportServerOption = TcpTransportServerOption;
+
+    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+        let ProtocolConfig::Tcp(_) = &config.protocol else {
+            return Err(anyhow!("Invalid protocol config"));
+        };
+        Ok((Self {}, Self::TransportServerOption {}))
+    }
 
     async fn bind<T: ToSocketAddrs + Send>(
         &self,

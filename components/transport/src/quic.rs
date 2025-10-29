@@ -6,6 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use config::server::{ProtocolConfig, TransportConfig};
 use quinn::{
     Endpoint,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
@@ -53,6 +54,14 @@ impl Transport for QuicTransport {
     type Channel = QuicStream;
     type TransportClientOption = QuicTransportClientOption;
     type TransportServerOption = QuicTransportServerOption;
+
+    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+        let ProtocolConfig::Quic(quic_config) = &config.protocol else {
+            return Err(anyhow!("Invalid protocol config"));
+        };
+        let (cert, key) = cert::get_cert_key(&quic_config.tls_key, &quic_config.tls_cert)?;
+        Ok((Self {}, QuicTransportServerOption { cert, key }))
+    }
 
     async fn bind<T: ToSocketAddrs + Send>(
         &self,

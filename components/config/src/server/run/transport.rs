@@ -1,12 +1,13 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct TransportConfig {
+    #[serde(default = "default_addr")]
     pub addr: SocketAddr,
 
-    #[serde(flatten)]
+    #[serde(flatten, default)]
     pub protocol: ProtocolConfig,
 }
 
@@ -19,8 +20,21 @@ pub enum ProtocolConfig {
     Quic(QuicTransportConfig),
 }
 
+impl Default for ProtocolConfig {
+    fn default() -> Self {
+        ProtocolConfig::Quic(QuicTransportConfig::default())
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct TcpTransportConfig {}
 
-#[derive(Debug, Deserialize)]
-pub struct QuicTransportConfig {}
+#[derive(Debug, Deserialize, Default)]
+pub struct QuicTransportConfig {
+    pub tls_cert: Option<PathBuf>,
+    pub tls_key: Option<PathBuf>,
+}
+
+fn default_addr() -> SocketAddr {
+    "127.0.0.1:7777".parse().unwrap()
+}

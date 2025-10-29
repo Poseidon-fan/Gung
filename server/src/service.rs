@@ -16,9 +16,29 @@ pub struct Service<T: Transport> {
 }
 
 impl<T: Transport> Service<T> {
-    pub fn run(&mut self, _option: T::TransportServerOption) -> Result<()> {
-        // let listener = self.transport.bind(addr, option);
+    pub fn from(config: RunConfig) -> Result<(Self, T::TransportServerOption)> {
+        let config = Arc::new(config);
+        let (transport, transport_option) = T::new_server(&config.transport)?;
+        Ok((
+            Self {
+                config,
+                tcp_gtw_mgr: GatewayManager::new(),
+                transport: Arc::new(transport),
+            },
+            transport_option,
+        ))
+    }
 
-        Ok(())
+    pub async fn run(&mut self, transport_option: T::TransportServerOption) -> Result<()> {
+        #[allow(unused_variables)]
+        let listener = self
+            .transport
+            .bind(self.config.transport.addr, transport_option)
+            .await?;
+
+        loop {
+            let (_, remote_addr) = self.transport.accept(&listener).await?;
+            println!("accepted connection from {remote_addr}");
+        }
     }
 }

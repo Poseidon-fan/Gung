@@ -6,13 +6,12 @@ use tracing::info;
 
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, pem::PemObject};
 
-#[allow(dead_code)]
 pub fn get_cert_key(
-    key: Option<PathBuf>,
-    cert: Option<PathBuf>,
+    key: &Option<PathBuf>,
+    cert: &Option<PathBuf>,
 ) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>)> {
     if let (Some(key_path), Some(cert_path)) = (key, cert) {
-        load_cert_key(&key_path, &cert_path)
+        load_cert_key(key_path, cert_path)
     } else {
         generate_self_signed_cert_key()
     }

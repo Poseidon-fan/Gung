@@ -124,6 +124,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cert"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "directories-next",
+ "rcgen",
+ "rustls",
+ "tracing",
+]
+
+[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1324,6 +1335,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "cert",
+ "config",
  "net-mux",
  "quinn",
  "rustls",

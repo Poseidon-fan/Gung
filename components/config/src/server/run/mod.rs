@@ -2,7 +2,7 @@ mod transport;
 
 use serde::Deserialize;
 
-use crate::server::run::transport::TransportConfig;
+pub use transport::*;
 
 #[derive(Debug, Deserialize)]
 pub struct RunConfig {

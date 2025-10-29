@@ -1,0 +1,13 @@
+[package]
+name = "cert"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+directories-next = { workspace = true }
+rustls = { workspace = true }
+tracing = { workspace = true }
+rcgen = { workspace = true }

@@ -13,6 +13,8 @@ quinn = { workspace = true }
 net-mux = { workspace = true }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
+config = { path = "../config" }
+cert = { path = "../cert" }
 
 [[example]]
 name = "transport_server"

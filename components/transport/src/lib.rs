@@ -1,6 +1,7 @@
 mod quic;
 mod tcp;
 
+use config::server::TransportConfig;
 pub use quic::*;
 pub use tcp::*;
 
@@ -19,17 +20,24 @@ pub trait Transport: Send + Sync {
     type TransportClientOption;
     type TransportServerOption;
 
+    fn new_server(config: &TransportConfig) -> Result<(Self, Self::TransportServerOption)>
+    where
+        Self: Sized;
+
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
         option: Self::TransportServerOption,
     ) -> Result<Self::Listener>;
+
     async fn accept(&self, l: &Self::Listener) -> Result<(Self::RawConnection, SocketAddr)>;
+
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
         option: Self::TransportClientOption,
     ) -> Result<Self::RawConnection>;
+
     fn establish(&self, raw_conn: Self::RawConnection, is_server: bool)
     -> Result<Self::Connection>;
 }
@@ -39,5 +47,6 @@ pub trait LogicConnection: Send + Sync {
     type Stream: Send + Sync + AsyncRead + AsyncWrite + Unpin + 'static;
 
     async fn accept(&self) -> Result<Self::Stream>;
+
     async fn open(&self) -> Result<Self::Stream>;
 }
