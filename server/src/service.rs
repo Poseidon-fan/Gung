@@ -2,12 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
+use config::server::RunConfig;
 use transport::Transport;
 
-use crate::{
-    config::RunConfig,
-    proxy::{GatewayManager, tcp::TcpGateway},
-};
+use crate::proxy::{GatewayManager, tcp::TcpGateway};
 
 pub struct Service<T: Transport> {
     config: Arc<RunConfig>,

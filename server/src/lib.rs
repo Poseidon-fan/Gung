@@ -1,13 +1,12 @@
 #![allow(dead_code)]
 mod cert;
-pub mod config;
 mod port;
 mod proxy;
 mod service;
 
 use anyhow::{Ok, Result};
 
-use crate::config::RunConfig;
+use config::server::RunConfig;
 
 #[tokio::main]
 pub async fn run_server(run_config: RunConfig) -> Result<()> {

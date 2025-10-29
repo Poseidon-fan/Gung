@@ -18,6 +18,7 @@ tracing = { workspace = true }
 rand_set = { workspace = true }
 parking_lot = { workspace = true }
 transport = { path = "../components/transport" }
+config = { path = "../components/config" }
 async-trait = { workspace = true }
 
 [[bin]]

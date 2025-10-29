@@ -3,11 +3,6 @@ use std::net::SocketAddr;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-pub struct RunConfig {
-    pub transport: TransportConfig,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct TransportConfig {
     pub addr: SocketAddr,
 

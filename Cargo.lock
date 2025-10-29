@@ -202,6 +202,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "config"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "toml",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1036,6 +1047,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap",
+ "config",
  "directories-next",
  "parking_lot",
  "rand_set",

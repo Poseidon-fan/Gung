@@ -2,7 +2,7 @@ use std::fs;
 
 use anyhow::Result;
 use clap::Parser;
-use server::config::{CliConfig, Command, RunConfig};
+use config::server::{CliConfig, Command, RunConfig};
 
 fn main() -> Result<()> {
     let cli_config = CliConfig::parse();
