@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
-use auth::{AuthReq, AuthReqCodec, AuthRespCodec, AuthType};
+use auth::{
+    AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec, AuthType,
+};
 use config::client::{CliConfig, TransportType};
 
 use anyhow::{Result, bail};
@@ -60,15 +62,23 @@ impl<T: Transport> Client<T> {
 }
 
 async fn handle_connection<T: Transport>(
-    raw_conn: T::RawConnection,
+    mut raw_conn: T::RawConnection,
     config: &CliConfig,
+) -> Result<()> {
+    authenticate::<T>(&mut raw_conn, &config.data).await?;
+    Ok(())
+}
+
+async fn authenticate<T: Transport>(
+    raw_conn: &mut T::RawConnection,
+    first_data: &Option<JsonValue>,
 ) -> Result<()> {
     let (resp_reader, req_writer) = io::split(raw_conn);
     let mut req_writer = FramedWrite::new(req_writer, AuthReqCodec);
     let mut resp_reader = FramedRead::new(resp_reader, AuthRespCodec);
 
     // Construct the first request
-    let mut req = match &config.data {
+    let mut req = match first_data {
         Some(data) => {
             if !data.is_object() {
                 bail!("data must be an object");
@@ -93,11 +103,24 @@ async fn handle_connection<T: Transport>(
     println!("req: {:?}", req);
 
     req_writer.send(req).await?;
-    let resp = resp_reader
-        .next()
-        .await
-        .ok_or(anyhow::anyhow!("failed to read response"))??;
-    println!("response: {:?}", resp);
-
-    Ok(())
+    loop {
+        match resp_reader.next().await.transpose()? {
+            Some(resp) => match resp {
+                AuthResp::Accept(AuthAcceptResp { msg }) => {
+                    println!("Authentication accepted: {}", msg);
+                    return Ok(());
+                }
+                AuthResp::Reject(AuthRejectResp { msg }) => {
+                    println!("Authentication rejected: {}", msg);
+                    bail!("authentication rejected: {}", msg);
+                }
+                AuthResp::Challenge(_) => {
+                    todo!()
+                }
+            },
+            None => {
+                bail!("failed to read response from peer");
+            }
+        }
+    }
 }

@@ -49,22 +49,22 @@ pub enum AuthType {
 #[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthAcceptResp {
-    msg: String,
+    pub msg: String,
 }
 
 #[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthRejectResp {
-    msg: String,
+    pub msg: String,
 }
 
 #[pyclass]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthChallengeResp {
     #[pyo3(get)]
-    msg: String,
+    pub msg: String,
     #[pyo3(get)]
-    required_fields: Vec<String>,
+    pub required_fields: Vec<String>,
 }
 
 #[pymethods]
