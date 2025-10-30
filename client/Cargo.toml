@@ -6,7 +6,8 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-
+clap = { workspace = true }
+config = { path = "../components/config" }
 
 [[bin]]
 name = "gungc"

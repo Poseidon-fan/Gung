@@ -1,3 +1,7 @@
+use clap::Parser;
+use config::client::CliConfig;
+
 fn main() {
-    println!("Hello, world!");
+    let cli_config = CliConfig::parse();
+    println!("cli_config: {cli_config:?}");
 }
