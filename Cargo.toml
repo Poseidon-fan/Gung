@@ -35,3 +35,4 @@ rand_set = "0.1.2"
 parking_lot = "0.12.5"
 tokio-util = "0.7.16"
 futures-util = "0.3.31"
+strum = { version = "0.27.2", features = ["derive"] }

@@ -5,7 +5,7 @@ use config::client::{CliConfig, TransportType};
 
 use anyhow::{Result, bail};
 use futures_util::{SinkExt, StreamExt};
-use serde_json::{Number, Value as JsonValue};
+use serde_json::Value as JsonValue;
 use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use transport::{QuicTransport, TcpTransport, Transport};
@@ -88,7 +88,7 @@ async fn handle_connection<T: Transport>(
     );
     req.payload.as_object_mut().unwrap().insert(
         "auth_type".to_string(),
-        JsonValue::Number(Number::from_u128(AuthType::Connect as u128).unwrap()),
+        JsonValue::String(AuthType::Connect.to_string()),
     );
     println!("req: {:?}", req);
 

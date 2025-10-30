@@ -45,13 +45,18 @@ impl<T: Transport> Service<T> {
             .await?;
 
         loop {
-            let (raw_conn, remote_addr) = self.transport.accept(&listener).await?;
-            let authenticator = self.authenticator.clone();
-            tokio::spawn(async move {
-                if let Err(e) = handle_connection::<T>(raw_conn, remote_addr, authenticator).await {
-                    eprintln!("Connection handling error from {}: {:?}", remote_addr, e);
-                }
-            });
+            if let Ok((raw_conn, remote_addr)) = self.transport.accept(&listener).await {
+                let authenticator = self.authenticator.clone();
+                tokio::spawn(async move {
+                    if let Err(e) =
+                        handle_connection::<T>(raw_conn, remote_addr, authenticator).await
+                    {
+                        eprintln!("Connection handling error from {}: {:?}", remote_addr, e);
+                    }
+                });
+            } else {
+                todo!("handle accept error");
+            }
         }
     }
 }
@@ -94,8 +99,7 @@ async fn authenticate<T: Transport>(
         .ok_or(anyhow::anyhow!("version is required"))?
         .parse::<Version>()?;
     let auth_type = req.payload["auth_type"]
-        .as_u64()
-        .map(|v| v as u8)
+        .as_str()
         .ok_or(anyhow::anyhow!("auth_type is required"))?
         .try_into()?;
 

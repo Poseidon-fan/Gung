@@ -7,6 +7,7 @@ use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 pub use codec::*;
@@ -30,16 +31,16 @@ pub struct AuthContext {
     pub auth_id: String,
     #[pyo3(get)]
     pub auth_type: AuthType,
+    pub client_version: Version,
     #[pyo3(get)]
     pub requests: Vec<AuthReq>,
     #[pyo3(get)]
     pub responses: Vec<AuthResp>,
-    client_version: Version,
 }
 
 #[pyclass]
-#[derive(Clone)]
-#[repr(u8)]
+#[derive(Clone, EnumString, Display)]
+#[strum(serialize_all = "lowercase")]
 pub enum AuthType {
     Ping,
     Connect,

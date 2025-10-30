@@ -69,23 +69,30 @@ impl Transport for QuicTransport {
     fn new_client(
         config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
-        let Some(QuicTransportParams {
+        if let Some(QuicTransportParams {
             cert_path,
             hostname,
         }) = &config.transport_params.quic_params
-        else {
-            return Err(anyhow!("Invalid quic transport params"));
-        };
-        Ok((
-            Self {},
-            QuicTransportClientOption {
-                cert: cert_path
-                    .as_ref()
-                    .map(|path| cert::load_certs(path))
-                    .transpose()?,
-                hostname: hostname.clone(),
-            },
-        ))
+        {
+            Ok((
+                Self {},
+                QuicTransportClientOption {
+                    cert: cert_path
+                        .as_ref()
+                        .map(|path| cert::load_certs(path))
+                        .transpose()?,
+                    hostname: hostname.clone(),
+                },
+            ))
+        } else {
+            Ok((
+                Self {},
+                QuicTransportClientOption {
+                    cert: None,
+                    hostname: None,
+                },
+            ))
+        }
     }
 
     async fn bind<T: ToSocketAddrs + Send>(
