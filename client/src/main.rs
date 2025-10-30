@@ -1,7 +1,9 @@
 use clap::Parser;
 use config::client::CliConfig;
 
-fn main() {
+use anyhow::Result;
+
+fn main() -> Result<()> {
     let cli_config = CliConfig::parse();
-    println!("cli_config: {cli_config:?}");
+    client::run_client(cli_config)
 }

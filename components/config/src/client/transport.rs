@@ -30,8 +30,10 @@ pub struct TransportParams {
 
 #[derive(Debug, Args)]
 pub struct QuicTransportParams {
-    #[arg(long, short = 'c')]
-    pub certs: Vec<PathBuf>,
+    #[arg(long)]
+    pub cert_path: Option<PathBuf>,
+    #[arg(long)]
+    pub hostname: Option<String>,
 }
 
 #[derive(Debug, Args)]

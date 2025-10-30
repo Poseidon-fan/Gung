@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use anyhow::Result;
+use anyhow::bail;
 use rustls::pki_types::CertificateDer;
 use rustls::pki_types::pem::PemObject;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -36,7 +37,7 @@ async fn handle_quic() -> Result<()> {
     let n = raw_conn.read(&mut buf).await?;
     if n == 0 {
         println!("remote closed");
-        return Err(anyhow::anyhow!("remote closed"));
+        bail!("remote closed");
     }
     println!("read by raw_conn: {}", String::from_utf8_lossy(&buf));
 
@@ -60,7 +61,7 @@ async fn handle_tcp() -> Result<()> {
     let n = raw_conn.read(&mut buf).await?;
     if n == 0 {
         println!("remote closed");
-        return Err(anyhow::anyhow!("remote closed"));
+        bail!("remote closed");
     }
     println!("read by raw_conn: {}", String::from_utf8_lossy(&buf));
 

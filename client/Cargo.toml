@@ -7,7 +7,15 @@ license.workspace = true
 
 [dependencies]
 clap = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tokio-util = { workspace = true }
+serde_json = { workspace = true }
+futures-util = { workspace = true }
 config = { path = "../components/config" }
+transport = { path = "../components/transport" }
+auth = { path = "../components/auth" }
+
 
 [[bin]]
 name = "gungc"

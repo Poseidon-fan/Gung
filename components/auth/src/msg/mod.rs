@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 mod codec;
 
+use anyhow::bail;
+
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -128,7 +130,7 @@ impl TryFrom<u8> for AuthType {
         match value {
             0 => Ok(AuthType::Ping),
             1 => Ok(AuthType::Connect),
-            _ => Err(anyhow::anyhow!("invalid auth_type: {}", value)),
+            _ => bail!("invalid auth_type: {}", value),
         }
     }
 }

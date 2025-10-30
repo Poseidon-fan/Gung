@@ -1,7 +1,6 @@
 mod quic;
 mod tcp;
 
-use config::server::TransportConfig;
 pub use quic::*;
 pub use tcp::*;
 
@@ -20,7 +19,15 @@ pub trait Transport: Send + Sync {
     type TransportClientOption;
     type TransportServerOption;
 
-    fn new_server(config: &TransportConfig) -> Result<(Self, Self::TransportServerOption)>
+    fn new_server(
+        config: &config::server::TransportConfig,
+    ) -> Result<(Self, Self::TransportServerOption)>
+    where
+        Self: Sized;
+
+    fn new_client(
+        config: &config::client::TransportConfig,
+    ) -> Result<(Self, Self::TransportClientOption)>
     where
         Self: Sized;
 

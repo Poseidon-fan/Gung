@@ -17,6 +17,19 @@ pub fn get_cert_key(
     }
 }
 
+pub fn load_certs(cert_path: &PathBuf) -> Result<Vec<CertificateDer<'static>>> {
+    if cert_path.extension().is_some_and(|x| x == "der") {
+        Ok(vec![CertificateDer::from(
+            fs::read(cert_path).context("failed to read certificate chain file")?,
+        )])
+    } else {
+        Ok(CertificateDer::pem_file_iter(cert_path)
+            .context("failed to read PEM from certificate chain file")?
+            .collect::<Result<_, _>>()
+            .context("invalid PEM-encoded certificate")?)
+    }
+}
+
 fn load_cert_key(
     key_path: &PathBuf,
     cert_path: &PathBuf,

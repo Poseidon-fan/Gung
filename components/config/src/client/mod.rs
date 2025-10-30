@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use clap::Parser;
 
 pub use proxy::*;
+use serde_json::Value as JsonValue;
 pub use transport::*;
 
 use crate::parse_addr_with_default_host;
@@ -24,4 +25,7 @@ pub struct CliConfig {
 
     #[clap(flatten)]
     pub transport: TransportConfig,
+
+    #[arg(long, short = 'd')]
+    pub data: Option<JsonValue>,
 }

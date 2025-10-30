@@ -29,6 +29,12 @@ impl Transport for TcpTransport {
         Ok((Self {}, Self::TransportServerOption {}))
     }
 
+    fn new_client(
+        _config: &config::client::TransportConfig,
+    ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
+        Ok((Self {}, Self::TransportClientOption {}))
+    }
+
     async fn bind<T: ToSocketAddrs + Send>(
         &self,
         addr: T,

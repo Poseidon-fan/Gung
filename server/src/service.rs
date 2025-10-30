@@ -1,6 +1,6 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, AuthType, Authenticator};
 use config::server::RunConfig;
@@ -110,7 +110,7 @@ async fn authenticate<T: Transport>(
             }
             AuthResp::Reject(_) => {
                 resp_writer.send(resp).await?;
-                return Err(anyhow::anyhow!("authentication rejected"));
+                bail!("authentication rejected");
             }
             AuthResp::Challenge(_) => {
                 // TODO(Poseidon): maybe need not to clone the resp here ?
