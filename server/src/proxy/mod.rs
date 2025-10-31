@@ -63,7 +63,7 @@ pub struct ProxyHandle<T: Proxy> {
 }
 
 #[async_trait]
-pub trait Gateway: 'static + Sized {
+pub trait Gateway: 'static + Sized + Send + Sync {
     type RawStream: Send;
     type Proxy: Proxy;
 
@@ -131,18 +131,21 @@ impl<T: Gateway> GatewayManager<T> {
                 .await;
         });
 
-        let gateway = {
-            let exists = self.gateways.lock().get(&addr).cloned();
-            match exists {
-                Some(gtw) => gtw,
-                None => {
-                    let gtw = Arc::new(T::bind(addr).await?);
-                    self.gateways.lock().insert(addr, gtw.clone());
-                    gtw
-                }
+        let exists = self.gateways.lock().get(&addr).cloned();
+        match exists {
+            Some(gtw) => {
+                gtw.add_proxy(pxy_handle);
+            }
+            None => {
+                let gtw = Arc::new(T::bind(addr).await?);
+                self.gateways.lock().insert(addr, gtw.clone());
+                gtw.add_proxy(pxy_handle);
+                tokio::spawn(async move {
+                    gtw.run().await;
+                });
             }
         };
-        gateway.add_proxy(pxy_handle);
+
         Ok(())
     }
 }
