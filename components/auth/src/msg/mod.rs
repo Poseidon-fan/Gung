@@ -33,6 +33,8 @@ pub struct AuthContext {
     pub auth_type: AuthType,
     pub client_version: Version,
     #[pyo3(get)]
+    pub proxy: config::client::ProxyConfig,
+    #[pyo3(get)]
     pub requests: Vec<AuthReq>,
     #[pyo3(get)]
     pub responses: Vec<AuthResp>,
@@ -113,13 +115,19 @@ impl AuthContext {
 }
 
 impl AuthContext {
-    pub fn new(auth_type: AuthType, client_version: Version, req: AuthReq) -> Self {
+    pub fn new(
+        auth_type: AuthType,
+        client_version: Version,
+        req: AuthReq,
+        proxy: config::client::ProxyConfig,
+    ) -> Self {
         Self {
             auth_id: Uuid::new_v4().to_string(),
             auth_type,
             requests: vec![req],
             responses: vec![],
             client_version,
+            proxy,
         }
     }
 }

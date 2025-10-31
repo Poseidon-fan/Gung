@@ -102,8 +102,9 @@ async fn authenticate<T: Transport>(
         .as_str()
         .ok_or(anyhow::anyhow!("auth_type is required"))?
         .try_into()?;
+    let proxy = serde_json::from_value(req.payload["proxy"].clone())?;
 
-    let mut context = AuthContext::new(auth_type, version, req);
+    let mut context = AuthContext::new(auth_type, version, req, proxy);
 
     loop {
         let resp = authenticator.authenticate(&context).await?;

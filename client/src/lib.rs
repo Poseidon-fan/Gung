@@ -65,20 +65,20 @@ async fn handle_connection<T: Transport>(
     mut raw_conn: T::RawConnection,
     config: &CliConfig,
 ) -> Result<()> {
-    authenticate::<T>(&mut raw_conn, &config.data).await?;
+    authenticate::<T>(&mut raw_conn, config).await?;
     Ok(())
 }
 
 async fn authenticate<T: Transport>(
     raw_conn: &mut T::RawConnection,
-    first_data: &Option<JsonValue>,
+    config: &CliConfig,
 ) -> Result<()> {
     let (resp_reader, req_writer) = io::split(raw_conn);
     let mut req_writer = FramedWrite::new(req_writer, AuthReqCodec);
     let mut resp_reader = FramedRead::new(resp_reader, AuthRespCodec);
 
     // Construct the first request
-    let mut req = match first_data {
+    let mut req = match &config.data {
         Some(data) => {
             if !data.is_object() {
                 bail!("data must be an object");
@@ -100,8 +100,11 @@ async fn authenticate<T: Transport>(
         "auth_type".to_string(),
         JsonValue::String(AuthType::Connect.to_string()),
     );
+    req.payload.as_object_mut().unwrap().insert(
+        "proxy".to_string(),
+        serde_json::to_value(config.proxy.clone())?,
+    );
     println!("req: {:?}", req);
-
     req_writer.send(req).await?;
     loop {
         match resp_reader.next().await.transpose()? {

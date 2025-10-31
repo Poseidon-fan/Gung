@@ -1,21 +1,31 @@
 use clap::{Args, ValueEnum, arg};
+use pyo3::prelude::*;
+use serde::{Deserialize, Serialize};
+use strum::{Display, EnumString};
 
-#[derive(Debug, Args)]
+#[pyclass]
+#[derive(Debug, Args, Clone, Serialize, Deserialize)]
 pub struct ProxyConfig {
+    #[pyo3(get)]
     #[arg(long = "proxy", short = 'p')]
     pub proxy_type: ProxyType,
+    #[pyo3(get)]
     #[clap(flatten)]
     pub proxy_params: ProxyParams,
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[pyclass]
+#[derive(Debug, Clone, ValueEnum, EnumString, Display, Serialize, Deserialize)]
+#[strum(serialize_all = "lowercase")]
 pub enum ProxyType {
     Tcp,
     Http,
 }
 
-#[derive(Debug, Args)]
+#[pyclass]
+#[derive(Debug, Args, Clone, Serialize, Deserialize)]
 pub struct ProxyParams {
+    #[pyo3(get)]
     #[arg(long, short = 'r')]
     pub remote_port: Option<u16>,
 }

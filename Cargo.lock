@@ -232,8 +232,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "pyo3",
  "serde",
  "serde_json",
+ "strum",
  "toml",
 ]
 
@@ -1082,6 +1084,7 @@ dependencies = [
  "rustls",
  "semver",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-util",
  "toml",
