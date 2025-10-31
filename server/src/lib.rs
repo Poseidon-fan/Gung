@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 mod port;
-mod proxy;
+pub(crate) mod proxy;
 mod service;
 
 use anyhow::{Ok, Result};

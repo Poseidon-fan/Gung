@@ -21,6 +21,10 @@ pub struct TcpGateway {
 impl Proxy for TcpProxy {
     type Request = TcpStream;
 
+    fn from_client_config(_config: &config::client::ProxyConfig) -> Result<Self> {
+        Ok(Self {})
+    }
+
     async fn handle_one<T>(&self, mut req: Self::Request, mut channel: T)
     where
         T: AsyncRead + AsyncWrite + Send + Unpin,

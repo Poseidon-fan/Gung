@@ -1,6 +1,10 @@
 pub mod tcp;
 
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{
+    collections::HashMap,
+    net::{Ipv4Addr, SocketAddr},
+    sync::Arc,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -12,9 +16,13 @@ use tokio::{
 };
 use transport::LogicConnection;
 
+use crate::{port::Port, proxy::tcp::TcpGateway};
+
 #[async_trait]
 pub trait Proxy: 'static + Sized + Sync + Send {
     type Request: Send;
+
+    fn from_client_config(config: &config::client::ProxyConfig) -> Result<Self>;
 
     async fn handle_one<T>(&self, req: Self::Request, channel: T)
     where
@@ -25,7 +33,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         proxy_id: String,
         mut req_rx: mpsc::UnboundedReceiver<Self::Request>,
         conn: T,
-        client_shutdown_tx: mpsc::Sender<String>,
+        client_shutdown_tx: mpsc::UnboundedSender<String>,
         mut server_shutdown_rx: oneshot::Receiver<()>,
     ) -> Result<()> {
         // Wrap as Arc
@@ -45,7 +53,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                 },
                 _ = ctl_channel.read_f32() => {
                     // TODO(Poseidon): protocol system for control channel
-                    let _ = client_shutdown_tx.send(proxy_id.clone()).await;
+                    let _ = client_shutdown_tx.send(proxy_id.clone());
                     return Ok(());
                 },
                 _ = &mut server_shutdown_rx => {
@@ -92,8 +100,15 @@ pub trait Gateway: 'static + Sized + Send + Sync {
     fn is_empty(&self) -> bool;
 }
 
+type GatewayHandle<T> = (Arc<T>, Port);
+
 pub struct GatewayManager<T: Gateway> {
-    gateways: Arc<Mutex<HashMap<SocketAddr, Arc<T>>>>,
+    gateways: Arc<Mutex<HashMap<u16, GatewayHandle<T>>>>,
+}
+
+#[derive(Default)]
+pub struct GatewayRegistry {
+    pub tcp_mgr: Option<GatewayManager<TcpGateway>>,
 }
 
 impl<T: Gateway> GatewayManager<T> {
@@ -104,12 +119,12 @@ impl<T: Gateway> GatewayManager<T> {
     }
 
     pub async fn register<K: LogicConnection + 'static>(
-        &mut self,
+        &self,
         proxy: T::Proxy,
         proxy_id: String,
-        addr: SocketAddr,
+        port: Port,
         conn: K,
-        client_shutdown_tx: mpsc::Sender<String>,
+        client_shutdown_tx: mpsc::UnboundedSender<String>,
     ) -> Result<()> {
         let (req_tx, req_rx) = mpsc::unbounded_channel();
         let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
@@ -131,14 +146,19 @@ impl<T: Gateway> GatewayManager<T> {
                 .await;
         });
 
-        let exists = self.gateways.lock().get(&addr).cloned();
+        let exists = self
+            .gateways
+            .lock()
+            .get(&port.0)
+            .map(|(gtw, _)| gtw.clone());
         match exists {
             Some(gtw) => {
                 gtw.add_proxy(pxy_handle);
             }
             None => {
-                let gtw = Arc::new(T::bind(addr).await?);
-                self.gateways.lock().insert(addr, gtw.clone());
+                let gtw =
+                    Arc::new(T::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0))).await?);
+                self.gateways.lock().insert(port.0, (gtw.clone(), port));
                 gtw.add_proxy(pxy_handle);
                 tokio::spawn(async move {
                     gtw.run().await;
@@ -147,5 +167,17 @@ impl<T: Gateway> GatewayManager<T> {
         };
 
         Ok(())
+    }
+}
+
+impl TryFrom<&config::server::ProxyConfig> for GatewayRegistry {
+    type Error = anyhow::Error;
+
+    fn try_from(config: &config::server::ProxyConfig) -> Result<Self> {
+        let mut registry = Self::default();
+        if let Some(_tcp_config) = config.tcp.as_ref() {
+            registry.tcp_mgr = Some(GatewayManager::<TcpGateway>::new());
+        }
+        Ok(registry)
     }
 }

@@ -4,11 +4,19 @@ use anyhow::{Result, bail};
 use parking_lot::Mutex;
 use rand_set::RandSet;
 
-pub struct Port(u16);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Port(pub u16);
 
 pub fn alloc(pointed_port: Option<u16>) -> Result<Port> {
     let port = PORT_MANAGER.lock().alloc(pointed_port)?;
     Ok(Port(port))
+}
+
+pub fn init(allowed: Option<HashSet<u16>>) -> Result<()> {
+    if let Some(allowed) = allowed {
+        PORT_MANAGER.lock().init(allowed);
+    }
+    Ok(())
 }
 
 impl Drop for Port {
@@ -21,17 +29,17 @@ pub struct PortManager {
     free_ports: RandSet<u16>,
 }
 
-impl PortManager {
-    fn new() -> Self {
+impl Default for PortManager {
+    fn default() -> Self {
         Self {
-            free_ports: RandSet::new(),
+            free_ports: RandSet::from_iter(0..65535),
         }
     }
+}
 
-    pub fn init(allowed: HashSet<u16>) -> Self {
-        Self {
-            free_ports: RandSet::from_iter(allowed),
-        }
+impl PortManager {
+    pub fn init(&mut self, allowed: HashSet<u16>) {
+        self.free_ports = RandSet::from_iter(allowed);
     }
 
     fn alloc(&mut self, pointed_port: Option<u16>) -> Result<u16> {
@@ -60,5 +68,5 @@ impl PortManager {
     }
 }
 
-pub static PORT_MANAGER: LazyLock<Mutex<PortManager>> =
-    LazyLock::new(|| Mutex::new(PortManager::new()));
+static PORT_MANAGER: LazyLock<Mutex<PortManager>> =
+    LazyLock::new(|| Mutex::new(PortManager::default()));

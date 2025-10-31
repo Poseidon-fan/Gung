@@ -1,44 +1,53 @@
 use std::{net::SocketAddr, sync::Arc};
 
-use anyhow::{Result, bail};
+use anyhow::{Result, anyhow, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, AuthType, Authenticator};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
 use semver::Version;
-use tokio::io;
+use tokio::{io, sync::mpsc};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use transport::Transport;
 
-use crate::proxy::{GatewayManager, tcp::TcpGateway};
+use crate::{
+    port,
+    proxy::{GatewayRegistry, Proxy, tcp::TcpProxy},
+};
 
 pub struct Service<T: Transport> {
     config: Arc<RunConfig>,
     authenticator: Arc<dyn Authenticator>,
 
-    tcp_gtw_mgr: GatewayManager<TcpGateway>,
+    gtw_mgrs: Arc<GatewayRegistry>,
 
     transport: Arc<T>,
 }
 
-impl<T: Transport> Service<T> {
+impl<T: Transport + 'static> Service<T> {
     pub fn from(config: RunConfig) -> Result<(Self, T::TransportServerOption)> {
         let config = Arc::new(config);
         let (transport, transport_option) = T::new_server(&config.transport)?;
         let authenticator = auth::from(&config.auth)?;
+        let gtw_mgrs = Arc::new(GatewayRegistry::try_from(&config.proxy)?);
         Ok((
             Self {
                 config,
-                tcp_gtw_mgr: GatewayManager::new(),
                 transport: Arc::new(transport),
                 authenticator,
+                gtw_mgrs,
             },
             transport_option,
         ))
     }
 
     pub async fn run(&mut self, transport_option: T::TransportServerOption) -> Result<()> {
+        // TODO(Poseidon): support allowed ports
+        port::init(None)?;
+
+        let (client_shutdown_tx, _client_shutdown_rx) = mpsc::unbounded_channel();
+
         let listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)
@@ -47,9 +56,19 @@ impl<T: Transport> Service<T> {
         loop {
             if let Ok((raw_conn, remote_addr)) = self.transport.accept(&listener).await {
                 let authenticator = self.authenticator.clone();
+                let transport = self.transport.clone();
+                let gtw_mgrs = self.gtw_mgrs.clone();
+                let client_shutdown_tx = client_shutdown_tx.clone();
                 tokio::spawn(async move {
-                    if let Err(e) =
-                        handle_connection::<T>(raw_conn, remote_addr, authenticator).await
+                    if let Err(e) = handle_connection::<T>(
+                        raw_conn,
+                        remote_addr,
+                        authenticator,
+                        gtw_mgrs,
+                        transport,
+                        client_shutdown_tx,
+                    )
+                    .await
                     {
                         eprintln!("Connection handling error from {}: {:?}", remote_addr, e);
                     }
@@ -61,20 +80,47 @@ impl<T: Transport> Service<T> {
     }
 }
 
-async fn handle_connection<T: Transport>(
+async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     remote_addr: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
+    gtw_mgrs: Arc<GatewayRegistry>,
+    transport: Arc<T>,
+    client_shutdown_tx: mpsc::UnboundedSender<String>,
 ) -> Result<()> {
     // Authenticate the connection
     let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
 
     match context.auth_type {
         AuthType::Ping => {
-            todo!()
+            println!("pong from {}", remote_addr);
+            Ok(())
         }
         AuthType::Connect => {
-            todo!()
+            let conn = transport.establish(raw_conn, true)?;
+            match context.proxy.proxy_type {
+                config::client::ProxyType::Tcp => {
+                    let proxy = TcpProxy::from_client_config(&context.proxy)?;
+                    gtw_mgrs
+                        .as_ref()
+                        .tcp_mgr
+                        .as_ref()
+                        .ok_or(anyhow!("TCP manager not supported"))?
+                        .register(
+                            proxy,
+                            context.auth_id.clone(),
+                            port::alloc(context.proxy.proxy_params.remote_port)?,
+                            conn,
+                            client_shutdown_tx.clone(),
+                        )
+                        .await?;
+                }
+                config::client::ProxyType::Http => {
+                    todo!()
+                }
+            };
+
+            Ok(())
         }
     }
 }
