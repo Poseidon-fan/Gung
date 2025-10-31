@@ -33,6 +33,9 @@ pub fn register_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     auth_module.add_class::<AuthAcceptResp>()?;
     auth_module.add_class::<AuthRejectResp>()?;
     auth_module.add_class::<AuthChallengeResp>()?;
+    auth_module.add_class::<config::client::ProxyConfig>()?;
+    auth_module.add_class::<config::client::ProxyParams>()?;
+    auth_module.add_class::<config::client::ProxyType>()?;
     parent_module.add_submodule(&auth_module)?;
     Ok(())
 }
