@@ -64,7 +64,7 @@ impl Gateway for TcpGateway {
         let handle = self.proxy_handle.lock().take();
         if let Some(handle) = handle {
             debug_assert_eq!(handle.proxy_id, proxy_id);
-            let _ = handle.internal_shutdown_tx.send(());
+            let _ = handle.server_shutdown_tx.send(());
         }
     }
 

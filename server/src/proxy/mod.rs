@@ -25,8 +25,8 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         proxy_id: String,
         mut req_rx: mpsc::UnboundedReceiver<Self::Request>,
         conn: T,
-        external_shutdown_tx: mpsc::Sender<String>,
-        mut internal_shutdown_rx: oneshot::Receiver<()>,
+        client_shutdown_tx: mpsc::Sender<String>,
+        mut server_shutdown_rx: oneshot::Receiver<()>,
     ) -> Result<()> {
         // Wrap as Arc
         let proxy = Arc::new(self);
@@ -45,10 +45,10 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                 },
                 _ = ctl_channel.read_f32() => {
                     // TODO(Poseidon): protocol system for control channel
-                    let _ = external_shutdown_tx.send(proxy_id.clone()).await;
+                    let _ = client_shutdown_tx.send(proxy_id.clone()).await;
                     return Ok(());
                 },
-                _ = &mut internal_shutdown_rx => {
+                _ = &mut server_shutdown_rx => {
                     return Ok(());
                 }
             }
@@ -59,7 +59,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
 pub struct ProxyHandle<T: Proxy> {
     proxy_id: String,
     req_tx: mpsc::UnboundedSender<T::Request>,
-    internal_shutdown_tx: oneshot::Sender<()>,
+    server_shutdown_tx: oneshot::Sender<()>,
 }
 
 #[async_trait]
@@ -109,14 +109,14 @@ impl<T: Gateway> GatewayManager<T> {
         proxy_id: String,
         addr: SocketAddr,
         conn: K,
-        external_shutdown_tx: mpsc::Sender<String>,
+        client_shutdown_tx: mpsc::Sender<String>,
     ) -> Result<()> {
         let (req_tx, req_rx) = mpsc::unbounded_channel();
-        let (internal_shutdown_tx, internal_shutdown_rx) = oneshot::channel();
+        let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
         let pxy_handle: ProxyHandle<T::Proxy> = ProxyHandle {
             proxy_id: proxy_id.clone(),
             req_tx,
-            internal_shutdown_tx,
+            server_shutdown_tx,
         };
         tokio::spawn(async move {
             // TODO(Poseidon): handle error here
@@ -125,8 +125,8 @@ impl<T: Gateway> GatewayManager<T> {
                     proxy_id.clone(),
                     req_rx,
                     conn,
-                    external_shutdown_tx,
-                    internal_shutdown_rx,
+                    client_shutdown_tx,
+                    server_shutdown_rx,
                 )
                 .await;
         });
