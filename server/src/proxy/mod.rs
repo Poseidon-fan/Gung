@@ -85,6 +85,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
     async fn run(self: Arc<Self>) {
         while let Ok((raw_stream, _)) = self.accept().await {
+            println!("get outside req");
             let this = self.clone();
             tokio::spawn(async move {
                 let req = Self::upgrade(raw_stream).await.unwrap();
