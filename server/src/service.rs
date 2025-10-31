@@ -67,9 +67,9 @@ async fn handle_connection<T: Transport>(
     authenticator: Arc<dyn Authenticator>,
 ) -> Result<()> {
     // Authenticate the connection
-    let (auth_type, _) = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
+    let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
 
-    match auth_type {
+    match context.auth_type {
         AuthType::Ping => {
             todo!()
         }
@@ -84,7 +84,7 @@ async fn authenticate<T: Transport>(
     // TODO(Poseidon): may support banning addr
     _: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
-) -> Result<(AuthType, String)> {
+) -> Result<AuthContext> {
     let (req_reader, resp_writer) = io::split(raw_conn);
     let mut req_reader = FramedRead::new(req_reader, AuthReqCodec);
     let mut resp_writer = FramedWrite::new(resp_writer, AuthRespCodec);
@@ -111,7 +111,7 @@ async fn authenticate<T: Transport>(
         match &resp {
             AuthResp::Accept(_) => {
                 resp_writer.send(resp).await?;
-                return Ok((context.auth_type, context.auth_id.clone()));
+                return Ok(context);
             }
             AuthResp::Reject(_) => {
                 resp_writer.send(resp).await?;
