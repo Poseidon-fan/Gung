@@ -29,7 +29,6 @@ pub fn register_module(parent_module: &Bound<'_, PyModule>) -> PyResult<()> {
     auth_module.add_class::<AuthReq>()?;
     auth_module.add_class::<AuthResp>()?;
     auth_module.add_class::<AuthContext>()?;
-    auth_module.add_class::<AuthType>()?;
     auth_module.add_class::<AuthAcceptResp>()?;
     auth_module.add_class::<AuthRejectResp>()?;
     auth_module.add_class::<AuthChallengeResp>()?;

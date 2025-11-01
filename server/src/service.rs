@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc};
 
 use anyhow::{Result, anyhow, bail};
 
-use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, AuthType, Authenticator};
+use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
 use semver::Version;
@@ -91,38 +91,29 @@ async fn handle_connection<T: Transport + 'static>(
     // Authenticate the connection
     let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
 
-    match context.auth_type {
-        AuthType::Ping => {
-            println!("pong from {}", remote_addr);
-            Ok(())
+    let conn = transport.establish(raw_conn, true)?;
+    match context.proxy.proxy_type {
+        config::client::ProxyType::Tcp => {
+            let proxy = TcpProxy::from_client_config(&context.proxy)?;
+            gtw_mgrs
+                .as_ref()
+                .tcp_mgr
+                .as_ref()
+                .ok_or(anyhow!("TCP manager not supported"))?
+                .register(
+                    proxy,
+                    context.auth_id.clone(),
+                    port::alloc(context.proxy.proxy_params.remote_port)?,
+                    conn,
+                    client_shutdown_tx.clone(),
+                )
+                .await?;
         }
-        AuthType::Connect => {
-            let conn = transport.establish(raw_conn, true)?;
-            match context.proxy.proxy_type {
-                config::client::ProxyType::Tcp => {
-                    let proxy = TcpProxy::from_client_config(&context.proxy)?;
-                    gtw_mgrs
-                        .as_ref()
-                        .tcp_mgr
-                        .as_ref()
-                        .ok_or(anyhow!("TCP manager not supported"))?
-                        .register(
-                            proxy,
-                            context.auth_id.clone(),
-                            port::alloc(context.proxy.proxy_params.remote_port)?,
-                            conn,
-                            client_shutdown_tx.clone(),
-                        )
-                        .await?;
-                }
-                config::client::ProxyType::Http => {
-                    todo!()
-                }
-            };
-
-            Ok(())
+        config::client::ProxyType::Http => {
+            todo!()
         }
-    }
+    };
+    Ok(())
 }
 
 async fn authenticate<T: Transport>(
@@ -144,13 +135,9 @@ async fn authenticate<T: Transport>(
         .as_str()
         .ok_or(anyhow::anyhow!("version is required"))?
         .parse::<Version>()?;
-    let auth_type = req.payload["auth_type"]
-        .as_str()
-        .ok_or(anyhow::anyhow!("auth_type is required"))?
-        .try_into()?;
     let proxy = serde_json::from_value(req.payload["proxy"].clone())?;
 
-    let mut context = AuthContext::new(auth_type, version, req, proxy);
+    let mut context = AuthContext::new(version, req, proxy);
 
     loop {
         let resp = authenticator.authenticate(&context).await?;

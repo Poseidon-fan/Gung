@@ -1,13 +1,10 @@
 #![allow(dead_code)]
 mod codec;
 
-use anyhow::bail;
-
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use strum::{Display, EnumString};
 use uuid::Uuid;
 
 pub use codec::*;
@@ -29,8 +26,6 @@ pub enum AuthResp {
 #[pyclass]
 pub struct AuthContext {
     pub auth_id: String,
-    #[pyo3(get)]
-    pub auth_type: AuthType,
     pub client_version: Version,
     #[pyo3(get)]
     pub proxy: config::client::ProxyConfig,
@@ -38,14 +33,6 @@ pub struct AuthContext {
     pub requests: Vec<AuthReq>,
     #[pyo3(get)]
     pub responses: Vec<AuthResp>,
-}
-
-#[pyclass]
-#[derive(Clone, EnumString, Display)]
-#[strum(serialize_all = "lowercase")]
-pub enum AuthType {
-    Ping,
-    Connect,
 }
 
 #[pyclass]
@@ -115,31 +102,13 @@ impl AuthContext {
 }
 
 impl AuthContext {
-    pub fn new(
-        auth_type: AuthType,
-        client_version: Version,
-        req: AuthReq,
-        proxy: config::client::ProxyConfig,
-    ) -> Self {
+    pub fn new(client_version: Version, req: AuthReq, proxy: config::client::ProxyConfig) -> Self {
         Self {
             auth_id: Uuid::new_v4().to_string(),
-            auth_type,
             requests: vec![req],
             responses: vec![],
             client_version,
             proxy,
-        }
-    }
-}
-
-impl TryFrom<u8> for AuthType {
-    type Error = anyhow::Error;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(AuthType::Ping),
-            1 => Ok(AuthType::Connect),
-            _ => bail!("invalid auth_type: {}", value),
         }
     }
 }

@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use auth::{
-    AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec, AuthType,
-};
+use auth::{AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec};
 use config::client::{CliConfig, TransportType};
 
 use anyhow::{Result, bail};
@@ -111,10 +109,6 @@ async fn authenticate<T: Transport>(
     req.payload.as_object_mut().unwrap().insert(
         "version".to_string(),
         JsonValue::String(env!("CARGO_PKG_VERSION").to_string()),
-    );
-    req.payload.as_object_mut().unwrap().insert(
-        "auth_type".to_string(),
-        JsonValue::String(AuthType::Connect.to_string()),
     );
     req.payload.as_object_mut().unwrap().insert(
         "proxy".to_string(),
