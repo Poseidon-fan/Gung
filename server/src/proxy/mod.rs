@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub mod tcp;
 
 use std::{

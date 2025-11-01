@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 mod codec;
 
 use pyo3::{exceptions::PyValueError, prelude::*};

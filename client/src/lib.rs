@@ -1,3 +1,5 @@
+mod proxy;
+
 use std::sync::Arc;
 
 use auth::{AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec};
@@ -6,9 +8,11 @@ use config::client::{CliConfig, TransportType};
 use anyhow::{Result, bail};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value as JsonValue;
-use tokio::{io, net::TcpStream};
+use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use transport::{LogicConnection, QuicTransport, TcpTransport, Transport};
+
+use crate::proxy::Proxy;
 
 #[tokio::main]
 pub async fn run_client(config: CliConfig) -> Result<()> {
@@ -28,15 +32,18 @@ pub async fn run_client(config: CliConfig) -> Result<()> {
 struct Client<T: Transport> {
     config: CliConfig,
     transport: Arc<T>,
+    proxy: Arc<dyn Proxy<Stream = T::Channel>>,
 }
 
 impl<T: Transport + 'static> Client<T> {
     pub fn new(config: CliConfig) -> Result<(Self, T::TransportClientOption)> {
         let (transport, transport_option) = T::new_client(&config.transport)?;
+        let proxy = proxy::from_config::<T>(&config.proxy)?;
         Ok((
             Self {
                 config,
                 transport: Arc::new(transport),
+                proxy,
             },
             transport_option,
         ))
@@ -55,7 +62,13 @@ impl<T: Transport + 'static> Client<T> {
             )
             .await?;
 
-        handle_connection::<T>(raw_conn, &self.config, self.transport.clone()).await
+        handle_connection::<T>(
+            raw_conn,
+            &self.config,
+            self.transport.clone(),
+            self.proxy.clone(),
+        )
+        .await
     }
 }
 
@@ -63,20 +76,19 @@ async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     config: &CliConfig,
     transport: Arc<T>,
+    proxy: Arc<dyn Proxy<Stream = T::Channel>>,
 ) -> Result<()> {
     authenticate::<T>(&mut raw_conn, config).await?;
 
     let conn = transport.establish(raw_conn, false)?;
     let _ctl_channel = conn.accept().await?;
 
-    while let Ok(mut data_channel) = conn.accept().await {
+    while let Ok(data_channel) = conn.accept().await {
         println!("get data channel");
         let local_addr = config.local_addr;
+        let proxy = proxy.clone();
         tokio::spawn(async move {
-            let mut so = TcpStream::connect(local_addr).await.unwrap();
-            io::copy_bidirectional(&mut data_channel, &mut so)
-                .await
-                .unwrap();
+            let _ = proxy.handle(data_channel, local_addr).await;
         });
     }
 

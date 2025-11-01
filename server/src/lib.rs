@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 mod port;
 pub(crate) mod proxy;
 mod service;

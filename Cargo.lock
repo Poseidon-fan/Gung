@@ -199,6 +199,7 @@ name = "client"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "auth",
  "clap",
  "config",
