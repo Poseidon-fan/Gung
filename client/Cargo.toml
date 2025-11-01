@@ -16,6 +16,7 @@ async-trait = { workspace = true }
 config = { path = "../components/config" }
 transport = { path = "../components/transport" }
 auth = { path = "../components/auth" }
+protocol = { path = "../components/protocol" }
 
 
 [[bin]]

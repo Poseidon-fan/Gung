@@ -9,12 +9,15 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use futures_util::{SinkExt, StreamExt};
 use parking_lot::Mutex;
+use protocol::{ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
-    io::{AsyncRead, AsyncReadExt, AsyncWrite},
+    io::{self, AsyncRead, AsyncWrite},
     select,
     sync::{mpsc, oneshot},
 };
+use tokio_util::codec::{FramedRead, FramedWrite};
 use transport::LogicConnection;
 
 use crate::{port::Port, proxy::tcp::TcpGateway};
@@ -32,6 +35,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
     async fn run<T: LogicConnection>(
         self,
         proxy_id: String,
+        server_addr: SocketAddr,
         mut req_rx: mpsc::UnboundedReceiver<Self::Request>,
         conn: T,
         client_shutdown_tx: mpsc::UnboundedSender<String>,
@@ -41,7 +45,13 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         let proxy = Arc::new(self);
 
         // Request for a control channel
-        let mut ctl_channel = conn.open().await?;
+        let ctl_channel = conn.open().await?;
+        let (client_cmd_reader, server_cmd_writer) = io::split(ctl_channel);
+        let mut client_cmd_reader = FramedRead::new(client_cmd_reader, ClientCommandCodec);
+        let mut server_cmd_writer = FramedWrite::new(server_cmd_writer, ServerCommandCodec);
+        server_cmd_writer
+            .send(ServerCommand::ForwardingStarted(server_addr))
+            .await?;
 
         loop {
             select! {
@@ -52,12 +62,21 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                         this.handle_one(req, data_channel).await;
                     });
                 },
-                _ = ctl_channel.read_f32() => {
-                    // TODO(Poseidon): protocol system for control channel
-                    let _ = client_shutdown_tx.send(proxy_id.clone());
-                    return Ok(());
-                },
+                client_cmd = client_cmd_reader.next() => {
+                    match client_cmd {
+                        None | Some(Err(_)) => {
+                            let _ = client_shutdown_tx.send(proxy_id.clone());
+                            return Ok(());
+                        }
+                        Some(Ok(client_cmd)) => {
+                            match client_cmd {
+                                // TODO(Poseidon): implement client commands
+                            }
+                        }
+                    }
+                }
                 _ = &mut server_shutdown_rx => {
+                    let _ = client_shutdown_tx.send(proxy_id.clone());
                     return Ok(());
                 }
             }
@@ -140,6 +159,7 @@ impl<T: Gateway> GatewayManager<T> {
             let _ = proxy
                 .run(
                     proxy_id.clone(),
+                    SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0)),
                     req_rx,
                     conn,
                     client_shutdown_tx,

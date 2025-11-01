@@ -25,6 +25,7 @@ semver = { workspace = true }
 transport = { path = "../components/transport" }
 config = { path = "../components/config" }
 auth = { path = "../components/auth" }
+protocol = { path = "../components/protocol" }
 
 
 [[bin]]

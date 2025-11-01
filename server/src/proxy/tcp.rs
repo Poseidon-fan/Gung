@@ -29,7 +29,9 @@ impl Proxy for TcpProxy {
     where
         T: AsyncRead + AsyncWrite + Send + Unpin,
     {
+        println!("start forwarding");
         let _ = io::copy_bidirectional(&mut req, &mut channel).await;
+        println!("finish forwarding");
     }
 }
 

@@ -7,8 +7,9 @@ use config::client::{CliConfig, TransportType};
 
 use anyhow::{Result, bail};
 use futures_util::{SinkExt, StreamExt};
+use protocol::{ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use serde_json::Value as JsonValue;
-use tokio::io;
+use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use transport::{LogicConnection, QuicTransport, TcpTransport, Transport};
 
@@ -81,17 +82,58 @@ async fn handle_connection<T: Transport + 'static>(
     authenticate::<T>(&mut raw_conn, config).await?;
 
     let conn = transport.establish(raw_conn, false)?;
-    let _ctl_channel = conn.accept().await?;
+    let ctl_channel = conn.accept().await?;
+    let (server_cmd_reader, client_cmd_writer) = io::split(ctl_channel);
+    let mut server_cmd_reader = FramedRead::new(server_cmd_reader, ServerCommandCodec);
+    let _ = FramedWrite::new(client_cmd_writer, ClientCommandCodec);
 
-    while let Ok(data_channel) = conn.accept().await {
-        println!("get data channel");
-        let local_addr = config.local_addr;
-        let proxy = proxy.clone();
-        tokio::spawn(async move {
-            let _ = proxy.handle(data_channel, local_addr).await;
-        });
+    loop {
+        select! {
+            data_channel = conn.accept() => {
+                match data_channel {
+                    Ok(data_channel) => {
+                        println!("get data channel");
+                        let local_addr = config.local_addr;
+                        let proxy = proxy.clone();
+                        tokio::spawn(async move {
+                            let _ = proxy.handle(data_channel, local_addr).await;
+                        });
+                    }
+                    Err(e) => {
+                        println!("internal error: {}", e);
+                        break;
+                    }
+                }
+            },
+            server_cmd = server_cmd_reader.next() => {
+                match server_cmd {
+                    None => {
+                        println!("peer closed");
+                        break;
+                    },
+                    Some(Err(e)) => {
+                        println!("internal error: {}", e);
+                        break;
+                    },
+                    Some(Ok(server_cmd)) => {
+                        match server_cmd {
+                            ServerCommand::ForwardingStarted(server_addr) => {
+                                println!("Start forwarding to {}", server_addr);
+                            }
+                            ServerCommand::ForwardingFailed(msg) => {
+                                println!("Forwarding failed: {}", msg);
+                                break;
+                            }
+                            ServerCommand::ForwardingShutdown => {
+                                println!("Forwarding shutdown");
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-
     Ok(())
 }
 
