@@ -6,7 +6,7 @@ use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
 use semver::Version;
-use tokio::{io, sync::mpsc};
+use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use transport::Transport;
@@ -46,8 +46,6 @@ impl<T: Transport + 'static> Service<T> {
         // TODO(Poseidon): support allowed ports
         port::init(None)?;
 
-        let (client_shutdown_tx, _client_shutdown_rx) = mpsc::unbounded_channel();
-
         let listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)
@@ -58,7 +56,6 @@ impl<T: Transport + 'static> Service<T> {
                 let authenticator = self.authenticator.clone();
                 let transport = self.transport.clone();
                 let gtw_mgrs = self.gtw_mgrs.clone();
-                let client_shutdown_tx = client_shutdown_tx.clone();
                 tokio::spawn(async move {
                     if let Err(e) = handle_connection::<T>(
                         raw_conn,
@@ -66,7 +63,6 @@ impl<T: Transport + 'static> Service<T> {
                         authenticator,
                         gtw_mgrs,
                         transport,
-                        client_shutdown_tx,
                     )
                     .await
                     {
@@ -86,7 +82,6 @@ async fn handle_connection<T: Transport + 'static>(
     authenticator: Arc<dyn Authenticator>,
     gtw_mgrs: Arc<GatewayRegistry>,
     transport: Arc<T>,
-    client_shutdown_tx: mpsc::UnboundedSender<String>,
 ) -> Result<()> {
     // Authenticate the connection
     let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
@@ -105,7 +100,6 @@ async fn handle_connection<T: Transport + 'static>(
                     context.auth_id.clone(),
                     port::alloc(context.proxy.proxy_params.remote_port)?,
                     conn,
-                    client_shutdown_tx.clone(),
                 )
                 .await?;
         }

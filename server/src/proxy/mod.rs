@@ -10,12 +10,11 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use parking_lot::Mutex;
 use protocol::{ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     select,
-    sync::{mpsc, oneshot},
+    sync::{Mutex, mpsc, oneshot},
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
 use transport::LogicConnection;
@@ -103,14 +102,28 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
     async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request);
 
-    async fn run(self: Arc<Self>) {
-        while let Ok((raw_stream, _)) = self.accept().await {
-            println!("get outside req");
-            let this = self.clone();
-            tokio::spawn(async move {
-                let req = Self::upgrade(raw_stream).await.unwrap();
-                this.dispatch(req).await;
-            });
+    async fn run(self: Arc<Self>, mut client_shutdown_rx: mpsc::UnboundedReceiver<String>) {
+        loop {
+            select! {
+                acc = self.accept() => {
+                    match acc {
+                        Ok((raw_stream, _)) => {
+                            println!("get outside req");
+                            let this = self.clone();
+                            tokio::spawn(async move {
+                                let req = Self::upgrade(raw_stream).await.unwrap();
+                                this.dispatch(req).await;
+                            });
+                        },
+                        Err(_) => {
+                            todo!()
+                        }
+                    }
+                },
+                Some(proxy_id) = client_shutdown_rx.recv() => {
+                    self.remove_proxy(proxy_id);
+                }
+            }
         }
     }
 
@@ -121,7 +134,11 @@ pub trait Gateway: 'static + Sized + Send + Sync {
     fn is_empty(&self) -> bool;
 }
 
-type GatewayHandle<T> = (Arc<T>, Port);
+struct GatewayHandle<T> {
+    gtw: Arc<T>,
+    port: Port,
+    client_shutdown_tx: mpsc::UnboundedSender<String>,
+}
 
 pub struct GatewayManager<T: Gateway> {
     gateways: Arc<Mutex<HashMap<u16, GatewayHandle<T>>>>,
@@ -145,8 +162,8 @@ impl<T: Gateway> GatewayManager<T> {
         proxy_id: String,
         port: Port,
         conn: K,
-        client_shutdown_tx: mpsc::UnboundedSender<String>,
     ) -> Result<()> {
+        let port_u16 = port.0;
         let (req_tx, req_rx) = mpsc::unbounded_channel();
         let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
         let pxy_handle: ProxyHandle<T::Proxy> = ProxyHandle {
@@ -154,12 +171,56 @@ impl<T: Gateway> GatewayManager<T> {
             req_tx,
             server_shutdown_tx,
         };
+        let client_shutdown_tx = {
+            let gateways = self.gateways.lock().await;
+            match gateways.get(&port_u16) {
+                Some(handle) => {
+                    let gtw = handle.gtw.clone();
+                    let tx = handle.client_shutdown_tx.clone();
+                    drop(gateways);
+                    gtw.add_proxy(pxy_handle);
+                    tx
+                }
+                None => {
+                    drop(gateways);
+                    let gtw =
+                        Arc::new(T::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0))).await?);
+                    let (client_shutdown_tx, client_shutdown_rx) = mpsc::unbounded_channel();
+                    let mut gateways = self.gateways.lock().await;
+                    match gateways.get(&port_u16) {
+                        Some(handle) => {
+                            let gtw = handle.gtw.clone();
+                            let tx = handle.client_shutdown_tx.clone();
+                            drop(gateways);
+                            gtw.add_proxy(pxy_handle);
+                            tx
+                        }
+                        None => {
+                            gateways.insert(
+                                port.0,
+                                GatewayHandle {
+                                    gtw: gtw.clone(),
+                                    port,
+                                    client_shutdown_tx: client_shutdown_tx.clone(),
+                                },
+                            );
+                            drop(gateways);
+                            gtw.add_proxy(pxy_handle);
+                            tokio::spawn(async move {
+                                gtw.run(client_shutdown_rx).await;
+                            });
+                            client_shutdown_tx
+                        }
+                    }
+                }
+            }
+        };
         tokio::spawn(async move {
             // TODO(Poseidon): handle error here
             let _ = proxy
                 .run(
                     proxy_id.clone(),
-                    SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0)),
+                    SocketAddr::from((Ipv4Addr::UNSPECIFIED, port_u16)),
                     req_rx,
                     conn,
                     client_shutdown_tx,
@@ -167,26 +228,6 @@ impl<T: Gateway> GatewayManager<T> {
                 )
                 .await;
         });
-
-        let exists = self
-            .gateways
-            .lock()
-            .get(&port.0)
-            .map(|(gtw, _)| gtw.clone());
-        match exists {
-            Some(gtw) => {
-                gtw.add_proxy(pxy_handle);
-            }
-            None => {
-                let gtw =
-                    Arc::new(T::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0))).await?);
-                self.gateways.lock().insert(port.0, (gtw.clone(), port));
-                gtw.add_proxy(pxy_handle);
-                tokio::spawn(async move {
-                    gtw.run().await;
-                });
-            }
-        };
 
         Ok(())
     }
