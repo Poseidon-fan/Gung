@@ -10,7 +10,7 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use protocol::{ClientCommandCodec, ServerCommand, ServerCommandCodec};
+use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     select,
@@ -69,7 +69,10 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                         }
                         Some(Ok(client_cmd)) => {
                             match client_cmd {
-                                // TODO(Poseidon): implement client commands
+                                ClientCommand::ClientShutdown => {
+                                    let _ = client_shutdown_tx.send(proxy_id.clone());
+                                    return Ok(());
+                                }
                             }
                         }
                     }
@@ -102,7 +105,12 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
     async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request);
 
-    async fn run(self: Arc<Self>, mut client_shutdown_rx: mpsc::UnboundedReceiver<String>) {
+    async fn run(
+        self: Arc<Self>,
+        port: u16,
+        mut client_shutdown_rx: mpsc::UnboundedReceiver<String>,
+        gateway_shutdown_tx: mpsc::UnboundedSender<u16>,
+    ) {
         loop {
             select! {
                 acc = self.accept() => {
@@ -122,6 +130,9 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                 },
                 Some(proxy_id) = client_shutdown_rx.recv() => {
                     self.remove_proxy(proxy_id);
+                    if self.is_empty() {
+                        let _ = gateway_shutdown_tx.send(port);
+                    }
                 }
             }
         }
@@ -142,6 +153,7 @@ struct GatewayHandle<T> {
 
 pub struct GatewayManager<T: Gateway> {
     gateways: Arc<Mutex<HashMap<u16, GatewayHandle<T>>>>,
+    gateway_shutdown_tx: mpsc::UnboundedSender<u16>,
 }
 
 #[derive(Default)]
@@ -151,8 +163,15 @@ pub struct GatewayRegistry {
 
 impl<T: Gateway> GatewayManager<T> {
     pub fn new() -> Self {
+        let (gateway_shutdown_tx, gateway_shutdown_rx) = mpsc::unbounded_channel();
+        let gateways = Arc::new(Mutex::new(HashMap::new()));
+        tokio::spawn(collect_gateway_shutdown(
+            gateways.clone(),
+            gateway_shutdown_rx,
+        ));
         Self {
-            gateways: Arc::new(Mutex::new(HashMap::new())),
+            gateways,
+            gateway_shutdown_tx,
         }
     }
 
@@ -198,8 +217,10 @@ impl<T: Gateway> GatewayManager<T> {
                     );
                     drop(gateways);
                     gtw.add_proxy(pxy_handle);
+                    let gateway_shutdown_tx = self.gateway_shutdown_tx.clone();
                     tokio::spawn(async move {
-                        gtw.run(client_shutdown_rx).await;
+                        gtw.run(port_u16, client_shutdown_rx, gateway_shutdown_tx)
+                            .await;
                     });
                     client_shutdown_tx
                 }
@@ -220,6 +241,16 @@ impl<T: Gateway> GatewayManager<T> {
         });
 
         Ok(())
+    }
+}
+
+async fn collect_gateway_shutdown<T: Gateway>(
+    gateways: Arc<Mutex<HashMap<u16, GatewayHandle<T>>>>,
+    mut gateway_shutdown_rx: mpsc::UnboundedReceiver<u16>,
+) {
+    while let Some(port) = gateway_shutdown_rx.recv().await {
+        println!("removed {port}");
+        gateways.lock().await.remove(&port);
     }
 }
 

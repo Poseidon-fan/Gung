@@ -11,8 +11,6 @@ use crate::service::Service;
 
 #[tokio::main]
 pub async fn run_server(run_config: RunConfig) -> Result<()> {
-    println!("run_config: {run_config:?}");
-
     match run_config.transport.protocol {
         ProtocolConfig::Quic(_) => {
             let (mut service, transport_option) = Service::<QuicTransport>::from(run_config)?;

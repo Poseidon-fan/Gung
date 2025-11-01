@@ -17,7 +17,9 @@ pub enum ServerCommand {
 }
 
 #[derive(Encode, Decode)]
-pub enum ClientCommand {}
+pub enum ClientCommand {
+    ClientShutdown,
+}
 
 pub struct ServerCommandCodec;
 
