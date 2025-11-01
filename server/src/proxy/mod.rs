@@ -187,31 +187,21 @@ impl<T: Gateway> GatewayManager<T> {
                         Arc::new(T::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0))).await?);
                     let (client_shutdown_tx, client_shutdown_rx) = mpsc::unbounded_channel();
                     let mut gateways = self.gateways.lock().await;
-                    match gateways.get(&port_u16) {
-                        Some(handle) => {
-                            let gtw = handle.gtw.clone();
-                            let tx = handle.client_shutdown_tx.clone();
-                            drop(gateways);
-                            gtw.add_proxy(pxy_handle);
-                            tx
-                        }
-                        None => {
-                            gateways.insert(
-                                port.0,
-                                GatewayHandle {
-                                    gtw: gtw.clone(),
-                                    port,
-                                    client_shutdown_tx: client_shutdown_tx.clone(),
-                                },
-                            );
-                            drop(gateways);
-                            gtw.add_proxy(pxy_handle);
-                            tokio::spawn(async move {
-                                gtw.run(client_shutdown_rx).await;
-                            });
-                            client_shutdown_tx
-                        }
-                    }
+
+                    gateways.insert(
+                        port.0,
+                        GatewayHandle {
+                            gtw: gtw.clone(),
+                            port,
+                            client_shutdown_tx: client_shutdown_tx.clone(),
+                        },
+                    );
+                    drop(gateways);
+                    gtw.add_proxy(pxy_handle);
+                    tokio::spawn(async move {
+                        gtw.run(client_shutdown_rx).await;
+                    });
+                    client_shutdown_tx
                 }
             }
         };
