@@ -30,5 +30,5 @@ pub struct QuicTransportConfig {
 }
 
 fn default_addr() -> SocketAddr {
-    "127.0.0.1:7777".parse().unwrap()
+    "0.0.0.1:7777".parse().unwrap()
 }
