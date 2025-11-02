@@ -168,6 +168,17 @@ async fn authenticate<T: Transport>(
         "proxy".to_string(),
         serde_json::to_value(config.proxy.clone())?,
     );
+    req.payload.as_object_mut().unwrap().insert(
+        "server_ip".to_string(),
+        JsonValue::String(
+            config
+                .transport
+                .transport_params
+                .server_addr
+                .ip()
+                .to_string(),
+        ),
+    );
     println!("req: {:?}", req);
     req_writer.send(req).await?;
     loop {

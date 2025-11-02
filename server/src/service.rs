@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 
 use anyhow::{Result, anyhow, bail};
 
@@ -98,6 +101,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .register(
                     proxy,
                     context.auth_id.clone(),
+                    context.server_ip,
                     port::alloc(context.proxy.proxy_params.remote_port)?,
                     conn,
                 )
@@ -130,8 +134,12 @@ async fn authenticate<T: Transport>(
         .ok_or(anyhow::anyhow!("version is required"))?
         .parse::<Version>()?;
     let proxy = serde_json::from_value(req.payload["proxy"].clone())?;
+    let server_ip = req.payload["server_ip"]
+        .as_str()
+        .ok_or(anyhow::anyhow!("server_ip is required"))?
+        .parse::<IpAddr>()?;
 
-    let mut context = AuthContext::new(version, req, proxy);
+    let mut context = AuthContext::new(version, server_ip, req, proxy);
 
     loop {
         let resp = authenticator.authenticate(&context).await?;

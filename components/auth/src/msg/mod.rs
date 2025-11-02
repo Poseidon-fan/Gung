@@ -1,5 +1,7 @@
 mod codec;
 
+use std::net::IpAddr;
+
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
 use serde::{Deserialize, Serialize};
@@ -26,6 +28,7 @@ pub enum AuthResp {
 pub struct AuthContext {
     pub auth_id: String,
     pub client_version: Version,
+    pub server_ip: IpAddr,
     #[pyo3(get)]
     pub proxy: config::client::ProxyConfig,
     #[pyo3(get)]
@@ -101,12 +104,18 @@ impl AuthContext {
 }
 
 impl AuthContext {
-    pub fn new(client_version: Version, req: AuthReq, proxy: config::client::ProxyConfig) -> Self {
+    pub fn new(
+        client_version: Version,
+        server_ip: IpAddr,
+        req: AuthReq,
+        proxy: config::client::ProxyConfig,
+    ) -> Self {
         Self {
             auth_id: Uuid::new_v4().to_string(),
             requests: vec![req],
             responses: vec![],
             client_version,
+            server_ip,
             proxy,
         }
     }

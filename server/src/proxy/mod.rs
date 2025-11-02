@@ -3,7 +3,7 @@ pub mod tcp;
 
 use std::{
     collections::HashMap,
-    net::{Ipv4Addr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
 };
 
@@ -179,6 +179,7 @@ impl<T: Gateway> GatewayManager<T> {
         &self,
         proxy: T::Proxy,
         proxy_id: String,
+        server_ip: IpAddr,
         port: Port,
         conn: K,
     ) -> Result<()> {
@@ -231,7 +232,7 @@ impl<T: Gateway> GatewayManager<T> {
             let _ = proxy
                 .run(
                     proxy_id.clone(),
-                    SocketAddr::from((Ipv4Addr::UNSPECIFIED, port_u16)),
+                    SocketAddr::from((server_ip, port_u16)),
                     req_rx,
                     conn,
                     client_shutdown_tx,
