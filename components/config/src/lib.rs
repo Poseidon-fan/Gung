@@ -10,6 +10,10 @@ pub(crate) fn parse_addr(s: &str) -> Result<SocketAddr, String> {
         .ok_or("Invalid address format (expected host:port)".to_string())
 }
 
+pub(crate) fn default_u64<const DEFAULT: u64>() -> u64 {
+    DEFAULT
+}
+
 pub(crate) fn parse_addr_with_default_host<const A: u8, const B: u8, const C: u8, const D: u8>(
     s: &str,
 ) -> Result<SocketAddr, String> {

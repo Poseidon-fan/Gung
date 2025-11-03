@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
-use config::server::RunConfig;
+use config::server::{KeepaliveConfig, RunConfig};
 use futures_util::{SinkExt, StreamExt};
 use protocol::constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use semver::Version;
@@ -63,11 +63,13 @@ impl<T: Transport + 'static> Service<T> {
                 Ok((raw_conn, client_addr)) => {
                     let authenticator = self.authenticator.clone();
                     let transport = self.transport.clone();
+                    let keepalive = self.config.transport.keepalive.clone();
                     let gtw_mgrs = self.gtw_mgrs.clone();
                     tokio::spawn(async move {
                         if let Err(e) = handle_connection::<T>(
                             raw_conn,
                             client_addr,
+                            keepalive,
                             authenticator,
                             gtw_mgrs,
                             transport,
@@ -90,6 +92,7 @@ impl<T: Transport + 'static> Service<T> {
 async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     client_addr: SocketAddr,
+    keepalive: KeepaliveConfig,
     authenticator: Arc<dyn Authenticator>,
     gtw_mgrs: Arc<GatewayRegistry>,
     transport: Arc<T>,
@@ -113,6 +116,7 @@ async fn handle_connection<T: Transport + 'static>(
                     proxy,
                     context.auth_id.clone(),
                     context.server_ip,
+                    keepalive,
                     port::alloc(context.proxy.proxy_params.remote_port)?,
                     conn,
                 )

@@ -13,11 +13,13 @@ use tokio_util::{
 pub enum ServerCommand {
     ForwardingStarted(SocketAddr),
     ForwardingShutdown,
+    Ping,
 }
 
 #[derive(Encode, Decode)]
 pub enum ClientCommand {
     ClientShutdown,
+    Ack,
 }
 
 pub struct ServerCommandCodec;

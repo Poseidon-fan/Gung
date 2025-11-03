@@ -4,16 +4,19 @@ use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
+use config::server::KeepaliveConfig;
 use futures_util::{SinkExt, StreamExt};
 use protocol::cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     select,
     sync::{Mutex, mpsc, oneshot},
+    time,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, info, instrument};
@@ -36,10 +39,13 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         self,
         proxy_id: String,
         server_addr: SocketAddr,
+        keepalive: KeepaliveConfig,
         mut req_rx: mpsc::UnboundedReceiver<Self::Request>,
         conn: T,
-        client_shutdown_tx: mpsc::UnboundedSender<String>,
-        mut server_shutdown_rx: oneshot::Receiver<()>,
+        (client_shutdown_tx, mut server_shutdown_rx): (
+            mpsc::UnboundedSender<String>,
+            oneshot::Receiver<()>,
+        ),
     ) -> Result<()> {
         // Wrap as Arc
         let proxy = Arc::new(self);
@@ -52,6 +58,9 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         server_cmd_writer
             .send(ServerCommand::ForwardingStarted(server_addr))
             .await?;
+
+        let mut ping_ticker = time::interval(Duration::from_secs(keepalive.keepalive_interval));
+
         info!("Proxy started");
 
         loop {
@@ -63,7 +72,8 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                         debug!("Forwarding new request");
                         this.handle_one(req, data_channel).await;
                     });
-                },
+                }
+
                 client_cmd = client_cmd_reader.next() => {
                     match client_cmd {
                         None | Some(Err(_)) => {
@@ -78,12 +88,25 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                                     let _ = client_shutdown_tx.send(proxy_id.clone());
                                     return Ok(());
                                 }
+                                ClientCommand::Ack => {}
                             }
                         }
                     }
                 }
+
+                _ = ping_ticker.tick() => {
+                    debug!("Ping");
+                    server_cmd_writer.send(ServerCommand::Ping).await?;
+                }
+
                 _ = &mut server_shutdown_rx => {
                     info!("Server side shutdown");
+                    let _ = client_shutdown_tx.send(proxy_id.clone());
+                    return Ok(());
+                }
+
+                _ = time::sleep(Duration::from_secs(keepalive.keepalive_timeout)) => {
+                    info!("Ping timeout");
                     let _ = client_shutdown_tx.send(proxy_id.clone());
                     return Ok(());
                 }
@@ -186,6 +209,7 @@ impl<T: Gateway> GatewayManager<T> {
         proxy: T::Proxy,
         proxy_id: String,
         server_ip: IpAddr,
+        keepalive: KeepaliveConfig,
         port: Port,
         conn: K,
     ) -> Result<()> {
@@ -235,10 +259,10 @@ impl<T: Gateway> GatewayManager<T> {
                 .run(
                     proxy_id.clone(),
                     SocketAddr::from((server_ip, port_u16)),
+                    keepalive,
                     req_rx,
                     conn,
-                    client_shutdown_tx,
-                    server_shutdown_rx,
+                    (client_shutdown_tx, server_shutdown_rx),
                 )
                 .await;
         });

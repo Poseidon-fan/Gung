@@ -10,6 +10,8 @@ pub struct TransportConfig {
     pub transport_type: TransportType,
     #[clap(flatten)]
     pub transport_params: TransportParams,
+    #[arg(long, default_value = "700")]
+    pub keepalive_timeout: u64,
 }
 
 #[derive(Debug, Clone, ValueEnum)]

@@ -1,7 +1,7 @@
 mod proxy;
 
-use std::io::Write;
 use std::sync::Arc;
+use std::{io::Write, time::Duration};
 
 use auth::{
     AuthAcceptResp, AuthChallengeResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp,
@@ -12,16 +12,16 @@ use config::client::{CliConfig, TransportType};
 use anyhow::{Context, Result, bail};
 use futures_util::{SinkExt, StreamExt};
 use protocol::{
-    cmd::{ClientCommandCodec, ServerCommand, ServerCommandCodec},
+    cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec},
     constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD},
 };
 use serde_json::{Map, Value as JsonValue};
 use tokio::{
     io::{self, AsyncBufReadExt, BufReader},
-    select,
+    select, time,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 use transport::{LogicConnection, QuicTransport, TcpTransport, Transport};
 
 use crate::proxy::Proxy;
@@ -106,7 +106,7 @@ async fn handle_connection<T: Transport + 'static>(
     let ctl_channel = conn.accept().await?;
     let (server_cmd_reader, client_cmd_writer) = io::split(ctl_channel);
     let mut server_cmd_reader = FramedRead::new(server_cmd_reader, ServerCommandCodec);
-    let _ = FramedWrite::new(client_cmd_writer, ClientCommandCodec);
+    let mut client_cmd_writer = FramedWrite::new(client_cmd_writer, ClientCommandCodec);
     info!("Proxy started");
 
     loop {
@@ -126,7 +126,8 @@ async fn handle_connection<T: Transport + 'static>(
                         break;
                     }
                 }
-            },
+            }
+
             server_cmd = server_cmd_reader.next() => {
                 match server_cmd {
                     None => {
@@ -146,9 +147,18 @@ async fn handle_connection<T: Transport + 'static>(
                                 info!("Server side shutdown");
                                 break;
                             }
+                            ServerCommand::Ping => {
+                                debug!("Pong");
+                                client_cmd_writer.send(ClientCommand::Ack).await?;
+                            }
                         }
                     }
                 }
+            }
+
+            _ = time::sleep(Duration::from_secs(config.transport.keepalive_timeout)) => {
+                info!("Ping timeout");
+                break;
             }
         }
     }

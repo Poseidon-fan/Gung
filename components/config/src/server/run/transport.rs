@@ -2,6 +2,8 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use serde::Deserialize;
 
+use crate::default_u64;
+
 #[derive(Debug, Deserialize)]
 pub struct TransportConfig {
     #[serde(default = "default_addr")]
@@ -9,6 +11,17 @@ pub struct TransportConfig {
 
     #[serde(flatten)]
     pub protocol: ProtocolConfig,
+
+    #[serde(flatten, default)]
+    pub keepalive: KeepaliveConfig,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeepaliveConfig {
+    #[serde(default = "default_u64::<600>")]
+    pub keepalive_interval: u64,
+    #[serde(default = "default_u64::<700>")]
+    pub keepalive_timeout: u64,
 }
 
 #[derive(Debug, Deserialize)]
