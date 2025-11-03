@@ -119,9 +119,9 @@ dependencies = [
 
 [[package]]
 name = "bitflags"
-version = "2.9.4"
+version = "2.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2261d10cca569e4643e526d8dc2e62e433cc8aba21ab764233731f8d369bf394"
+checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
 name = "bumpalo"
@@ -553,7 +553,7 @@ dependencies = [
 [[package]]
 name = "net-mux"
 version = "0.2.0"
-source = "git+https://github.com/Poseidon-fan/net-mux#5e421607d594584fa822a31d5733bed9e2756ffe"
+source = "git+https://github.com/Poseidon-fan/net-mux#017aea13f1c80f6fc34f1c9d94b3c55a40ad61da"
 dependencies = [
  "bitflags",
  "futures-util",
@@ -961,7 +961,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.59.0",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1599,7 +1599,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.1",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

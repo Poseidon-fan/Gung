@@ -26,7 +26,9 @@ impl<T: Transport> Proxy for TcpProxy<T> {
 
     async fn handle(&self, mut stream: Self::Stream, local_addr: SocketAddr) -> Result<()> {
         let mut local_socket = TcpStream::connect(local_addr).await?;
+        println!("start forwarding");
         let _ = io::copy_bidirectional(&mut stream, &mut local_socket).await;
+        println!("finish forwarding");
         Ok(())
     }
 }
