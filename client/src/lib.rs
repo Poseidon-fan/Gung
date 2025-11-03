@@ -1,8 +1,12 @@
 mod proxy;
 
+use std::io::Write;
 use std::sync::Arc;
 
-use auth::{AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec};
+use auth::{
+    AuthAcceptResp, AuthChallengeResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp,
+    AuthRespCodec,
+};
 use config::client::{CliConfig, TransportType};
 
 use anyhow::{Context, Result, bail};
@@ -11,8 +15,11 @@ use protocol::{
     cmd::{ClientCommandCodec, ServerCommand, ServerCommandCodec},
     constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD},
 };
-use serde_json::Value as JsonValue;
-use tokio::{io, select};
+use serde_json::{Map, Value as JsonValue};
+use tokio::{
+    io::{self, AsyncBufReadExt, BufReader},
+    select,
+};
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{error, info, instrument};
 use transport::{LogicConnection, QuicTransport, TcpTransport, Transport};
@@ -206,8 +213,25 @@ async fn authenticate<T: Transport>(
                     info!("Authentication rejected: {}", msg);
                     bail!("authentication rejected: {}", msg);
                 }
-                AuthResp::Challenge(_) => {
-                    todo!()
+                AuthResp::Challenge(AuthChallengeResp {
+                    msg,
+                    required_fields,
+                }) => {
+                    println!("Server is challenging: {msg}, require more auth information");
+                    let mut new_req = JsonValue::Object(Map::new());
+                    let mut reader = BufReader::new(io::stdin());
+                    for required_field in required_fields {
+                        print!("{}: ", required_field);
+                        std::io::stdout().flush()?;
+                        let mut line = String::new();
+                        reader.read_line(&mut line).await?;
+                        let line = line.trim().to_string();
+                        new_req
+                            .as_object_mut()
+                            .unwrap()
+                            .insert(required_field, serde_json::from_str(line.as_str())?);
+                    }
+                    req_writer.send(AuthReq { payload: new_req }).await?;
                 }
             },
             None => {

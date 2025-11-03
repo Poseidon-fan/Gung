@@ -89,7 +89,7 @@ impl AuthRejectResp {
 #[pymethods]
 impl AuthChallengeResp {
     #[new]
-    fn new(msg: String, required_fields: Vec<String>) -> Self {
+    pub fn new(msg: String, required_fields: Vec<String>) -> Self {
         Self {
             msg,
             required_fields,
