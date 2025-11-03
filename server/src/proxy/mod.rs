@@ -17,6 +17,7 @@ use tokio::{
     sync::{Mutex, mpsc, oneshot},
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{debug, info, instrument};
 use transport::LogicConnection;
 
 use crate::{port::Port, proxy::tcp::TcpGateway};
@@ -31,6 +32,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
     where
         T: AsyncRead + AsyncWrite + Send + Unpin;
 
+    #[instrument(name = "proxy:run", skip_all, fields(proxy_id = proxy_id))]
     async fn run<T: LogicConnection>(
         self,
         proxy_id: String,
@@ -51,6 +53,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         server_cmd_writer
             .send(ServerCommand::ForwardingStarted(server_addr))
             .await?;
+        info!("Proxy started");
 
         loop {
             select! {
@@ -58,18 +61,21 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     let this = proxy.clone();
                     let data_channel = conn.open().await?;
                     tokio::spawn(async move {
+                        debug!("Forwarding new request");
                         this.handle_one(req, data_channel).await;
                     });
                 },
                 client_cmd = client_cmd_reader.next() => {
                     match client_cmd {
                         None | Some(Err(_)) => {
+                            info!("Client side shutdown");
                             let _ = client_shutdown_tx.send(proxy_id.clone());
                             return Ok(());
                         }
                         Some(Ok(client_cmd)) => {
                             match client_cmd {
                                 ClientCommand::ClientShutdown => {
+                                    info!("Client side shutdown");
                                     let _ = client_shutdown_tx.send(proxy_id.clone());
                                     return Ok(());
                                 }
@@ -78,6 +84,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     }
                 }
                 _ = &mut server_shutdown_rx => {
+                    info!("Server side shutdown");
                     let _ = client_shutdown_tx.send(proxy_id.clone());
                     return Ok(());
                 }

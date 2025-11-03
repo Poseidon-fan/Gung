@@ -5,7 +5,7 @@ use std::sync::Arc;
 use auth::{AuthAcceptResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp, AuthRespCodec};
 use config::client::{CliConfig, TransportType};
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use futures_util::{SinkExt, StreamExt};
 use protocol::{
     cmd::{ClientCommandCodec, ServerCommand, ServerCommandCodec},
@@ -14,6 +14,7 @@ use protocol::{
 use serde_json::Value as JsonValue;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tracing::{error, info, instrument};
 use transport::{LogicConnection, QuicTransport, TcpTransport, Transport};
 
 use crate::proxy::Proxy;
@@ -64,7 +65,13 @@ impl<T: Transport + 'static> Client<T> {
                     .to_string(),
                 transport_option,
             )
-            .await?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to connect to server {}",
+                    self.config.transport.transport_params.server_addr
+                )
+            })?;
 
         handle_connection::<T>(
             raw_conn,
@@ -76,34 +83,39 @@ impl<T: Transport + 'static> Client<T> {
     }
 }
 
+#[instrument(skip_all)]
 async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     config: &CliConfig,
     transport: Arc<T>,
     proxy: Arc<dyn Proxy<Stream = T::Channel>>,
 ) -> Result<()> {
-    authenticate::<T>(&mut raw_conn, config).await?;
+    authenticate::<T>(&mut raw_conn, config)
+        .await
+        .with_context(|| "Authentication failed")?;
+    info!("Authentication successfully");
 
     let conn = transport.establish(raw_conn, false)?;
     let ctl_channel = conn.accept().await?;
     let (server_cmd_reader, client_cmd_writer) = io::split(ctl_channel);
     let mut server_cmd_reader = FramedRead::new(server_cmd_reader, ServerCommandCodec);
     let _ = FramedWrite::new(client_cmd_writer, ClientCommandCodec);
+    info!("Proxy started");
 
     loop {
         select! {
             data_channel = conn.accept() => {
                 match data_channel {
                     Ok(data_channel) => {
-                        println!("get data channel");
                         let local_addr = config.local_addr;
                         let proxy = proxy.clone();
                         tokio::spawn(async move {
+                            info!("Forwarding new stream");
                             let _ = proxy.handle(data_channel, local_addr).await;
                         });
                     }
                     Err(e) => {
-                        println!("internal error: {}", e);
+                        error!("Failed to accept data channel, error: {e}");
                         break;
                     }
                 }
@@ -111,24 +123,24 @@ async fn handle_connection<T: Transport + 'static>(
             server_cmd = server_cmd_reader.next() => {
                 match server_cmd {
                     None => {
-                        println!("peer closed");
+                        info!("Server closed");
                         break;
                     },
                     Some(Err(e)) => {
-                        println!("internal error: {}", e);
+                        error!("Internal error: {e}");
                         break;
                     },
                     Some(Ok(server_cmd)) => {
                         match server_cmd {
                             ServerCommand::ForwardingStarted(server_addr) => {
-                                println!("Start forwarding to {}", server_addr);
+                                info!("Start forwarding to {server_addr}");
                             }
                             ServerCommand::ForwardingFailed(msg) => {
-                                println!("Forwarding failed: {}", msg);
+                                error!("Forwarding failed: {}", msg);
                                 break;
                             }
                             ServerCommand::ForwardingShutdown => {
-                                println!("Forwarding shutdown");
+                                info!("Server side shutdown");
                                 break;
                             }
                         }
@@ -182,17 +194,16 @@ async fn authenticate<T: Transport>(
                 .to_string(),
         ),
     );
-    println!("req: {:?}", req);
     req_writer.send(req).await?;
     loop {
         match resp_reader.next().await.transpose()? {
             Some(resp) => match resp {
                 AuthResp::Accept(AuthAcceptResp { msg }) => {
-                    println!("Authentication accepted: {}", msg);
+                    info!("Authentication accepted: {}", msg);
                     return Ok(());
                 }
                 AuthResp::Reject(AuthRejectResp { msg }) => {
-                    println!("Authentication rejected: {}", msg);
+                    info!("Authentication rejected: {}", msg);
                     bail!("authentication rejected: {}", msg);
                 }
                 AuthResp::Challenge(_) => {

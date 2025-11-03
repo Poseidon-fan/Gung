@@ -2,6 +2,7 @@ use clap::Parser;
 use config::client::CliConfig;
 
 use anyhow::Result;
+use tracing::debug;
 use tracing_subscriber::EnvFilter;
 
 fn main() -> Result<()> {
@@ -14,6 +15,7 @@ fn main() -> Result<()> {
         )
         .with_ansi(atty::is(atty::Stream::Stdout))
         .init();
+    debug!(?cli_config);
 
     client::run_client(cli_config)
 }

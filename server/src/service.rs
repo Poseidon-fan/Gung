@@ -59,21 +59,21 @@ impl<T: Transport + 'static> Service<T> {
         info!("Listening on {}", self.config.transport.addr);
 
         loop {
-            if let Ok((raw_conn, remote_addr)) = self.transport.accept(&listener).await {
+            if let Ok((raw_conn, client_addr)) = self.transport.accept(&listener).await {
                 let authenticator = self.authenticator.clone();
                 let transport = self.transport.clone();
                 let gtw_mgrs = self.gtw_mgrs.clone();
                 tokio::spawn(async move {
                     if let Err(e) = handle_connection::<T>(
                         raw_conn,
-                        remote_addr,
+                        client_addr,
                         authenticator,
                         gtw_mgrs,
                         transport,
                     )
                     .await
                     {
-                        error!("Connection handling error from {remote_addr}: {e:?}");
+                        error!("Connection handling error from {client_addr}: {e:?}");
                     }
                 });
             } else {
@@ -83,16 +83,18 @@ impl<T: Transport + 'static> Service<T> {
     }
 }
 
-#[instrument(skip_all, fields(remote_addr))]
+#[instrument(skip_all, fields(client_addr = client_addr.to_string()))]
 async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
-    remote_addr: SocketAddr,
+    client_addr: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
     gtw_mgrs: Arc<GatewayRegistry>,
     transport: Arc<T>,
 ) -> Result<()> {
     // Authenticate the connection
-    let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
+    let context = authenticate::<T>(&mut raw_conn, client_addr, authenticator)
+        .await
+        .with_context(|| "Authentication failed")?;
     info!("Authenticated successfully");
 
     let conn = transport.establish(raw_conn, true)?;
@@ -133,15 +135,15 @@ async fn authenticate<T: Transport>(
     let req = req_reader
         .next()
         .await
-        .ok_or(anyhow::anyhow!("failed to read first request"))??;
+        .ok_or(anyhow!("failed to read first request"))??;
     let version = req.payload[VERSION_AUTH_FIELD]
         .as_str()
-        .ok_or(anyhow::anyhow!("version is required"))?
+        .ok_or(anyhow!("version is required"))?
         .parse::<Version>()?;
     let proxy = serde_json::from_value(req.payload[PROXY_AUTH_FIELD].clone())?;
     let server_ip = req.payload[SERVER_IP_AUTH_FIELD]
         .as_str()
-        .ok_or(anyhow::anyhow!("server_ip is required"))?
+        .ok_or(anyhow!("server_ip is required"))?
         .parse::<IpAddr>()?;
 
     let mut context = AuthContext::new(version, server_ip, client_addr, req, proxy);
@@ -165,7 +167,7 @@ async fn authenticate<T: Transport>(
                     req_reader
                         .next()
                         .await
-                        .ok_or(anyhow::anyhow!("failed to read next request"))??,
+                        .ok_or(anyhow!("failed to read next request"))??,
                 );
             }
         }
