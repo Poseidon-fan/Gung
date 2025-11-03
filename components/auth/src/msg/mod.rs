@@ -1,6 +1,6 @@
 mod codec;
 
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 
 use pyo3::{exceptions::PyValueError, prelude::*};
 use semver::Version;
@@ -27,8 +27,10 @@ pub enum AuthResp {
 #[pyclass]
 pub struct AuthContext {
     pub auth_id: String,
-    pub client_version: Version,
     pub server_ip: IpAddr,
+
+    pub client_version: Version,
+    pub client_addr: SocketAddr,
     #[pyo3(get)]
     pub proxy: config::client::ProxyConfig,
     #[pyo3(get)]
@@ -101,12 +103,17 @@ impl AuthContext {
     fn client_version(&self) -> String {
         self.client_version.to_string()
     }
+    #[getter]
+    fn client_addr(&self) -> String {
+        self.client_addr.to_string()
+    }
 }
 
 impl AuthContext {
     pub fn new(
         client_version: Version,
         server_ip: IpAddr,
+        client_addr: SocketAddr,
         req: AuthReq,
         proxy: config::client::ProxyConfig,
     ) -> Self {
@@ -116,6 +123,7 @@ impl AuthContext {
             responses: vec![],
             client_version,
             server_ip,
+            client_addr,
             proxy,
         }
     }

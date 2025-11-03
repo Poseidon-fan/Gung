@@ -122,8 +122,7 @@ async fn handle_connection<T: Transport + 'static>(
 
 async fn authenticate<T: Transport>(
     raw_conn: &mut T::RawConnection,
-    // TODO(Poseidon): may support banning addr
-    _: SocketAddr,
+    client_addr: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
 ) -> Result<AuthContext> {
     let (req_reader, resp_writer) = io::split(raw_conn);
@@ -145,7 +144,7 @@ async fn authenticate<T: Transport>(
         .ok_or(anyhow::anyhow!("server_ip is required"))?
         .parse::<IpAddr>()?;
 
-    let mut context = AuthContext::new(version, server_ip, req, proxy);
+    let mut context = AuthContext::new(version, server_ip, client_addr, req, proxy);
 
     loop {
         let resp = authenticator.authenticate(&context).await?;
