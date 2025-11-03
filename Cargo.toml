@@ -34,7 +34,7 @@ net-mux = { git = "https://github.com/Poseidon-fan/net-mux" }
 rustls-native-certs = "0.8.1"
 rand_set = "0.1.2"
 parking_lot = "0.12.5"
-tokio-util = "0.7.16"
+tokio-util = { version = "0.7.16", features = ["codec"] }
 futures-util = "0.3.31"
 strum = { version = "0.27.2", features = ["derive"] }
 bincode = "2.0.1"
