@@ -3,7 +3,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, anyhow, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
 use config::server::RunConfig;
@@ -12,6 +12,7 @@ use semver::Version;
 use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
+use tracing::{error, info, instrument};
 use transport::Transport;
 
 use crate::{
@@ -52,7 +53,9 @@ impl<T: Transport + 'static> Service<T> {
         let listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)
-            .await?;
+            .await
+            .with_context(|| format!("Failed to bind transport {}", self.config.transport.addr))?;
+        info!("Listening on {}", self.config.transport.addr);
 
         loop {
             if let Ok((raw_conn, remote_addr)) = self.transport.accept(&listener).await {
@@ -69,7 +72,7 @@ impl<T: Transport + 'static> Service<T> {
                     )
                     .await
                     {
-                        eprintln!("Connection handling error from {}: {:?}", remote_addr, e);
+                        error!("Connection handling error from {remote_addr}: {e:?}");
                     }
                 });
             } else {
@@ -79,6 +82,7 @@ impl<T: Transport + 'static> Service<T> {
     }
 }
 
+#[instrument(skip_all, fields(remote_addr))]
 async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     remote_addr: SocketAddr,
@@ -88,6 +92,7 @@ async fn handle_connection<T: Transport + 'static>(
 ) -> Result<()> {
     // Authenticate the connection
     let context = authenticate::<T>(&mut raw_conn, remote_addr, authenticator).await?;
+    info!("Authenticated successfully");
 
     let conn = transport.establish(raw_conn, true)?;
     match context.proxy.proxy_type {
