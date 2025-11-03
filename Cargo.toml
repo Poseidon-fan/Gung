@@ -29,6 +29,7 @@ quinn = "0.11.9"
 directories-next = "2"
 rcgen = "0.14"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
 net-mux = { git = "https://github.com/Poseidon-fan/net-mux" }
 rustls-native-certs = "0.8.1"
 rand_set = "0.1.2"
@@ -37,3 +38,4 @@ tokio-util = "0.7.16"
 futures-util = "0.3.31"
 strum = { version = "0.27.2", features = ["derive"] }
 bincode = "2.0.1"
+atty = "0.2.14"
