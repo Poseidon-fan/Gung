@@ -13,7 +13,7 @@ use semver::Version;
 use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
 
-use tracing::{error, info, instrument};
+use tracing::{error, info, instrument, warn};
 use transport::Transport;
 
 use crate::{
@@ -59,25 +59,28 @@ impl<T: Transport + 'static> Service<T> {
         info!("Listening on {}", self.config.transport.addr);
 
         loop {
-            if let Ok((raw_conn, client_addr)) = self.transport.accept(&listener).await {
-                let authenticator = self.authenticator.clone();
-                let transport = self.transport.clone();
-                let gtw_mgrs = self.gtw_mgrs.clone();
-                tokio::spawn(async move {
-                    if let Err(e) = handle_connection::<T>(
-                        raw_conn,
-                        client_addr,
-                        authenticator,
-                        gtw_mgrs,
-                        transport,
-                    )
-                    .await
-                    {
-                        error!("Connection handling error from {client_addr}: {e:?}");
-                    }
-                });
-            } else {
-                todo!("handle accept error");
+            match self.transport.accept(&listener).await {
+                Ok((raw_conn, client_addr)) => {
+                    let authenticator = self.authenticator.clone();
+                    let transport = self.transport.clone();
+                    let gtw_mgrs = self.gtw_mgrs.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = handle_connection::<T>(
+                            raw_conn,
+                            client_addr,
+                            authenticator,
+                            gtw_mgrs,
+                            transport,
+                        )
+                        .await
+                        {
+                            error!("Connection handling error from {client_addr}: {e:?}");
+                        }
+                    });
+                }
+                Err(e) => {
+                    warn!("Failed to accept connection, err: {e:?}");
+                }
             }
         }
     }
