@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 pub mod tcp;
 
 use std::{
@@ -154,7 +153,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
 struct GatewayHandle<T> {
     gtw: Arc<T>,
-    port: Port,
+    _port: Port,
     client_shutdown_tx: mpsc::UnboundedSender<String>,
 }
 
@@ -216,7 +215,7 @@ impl<T: Gateway> GatewayManager<T> {
                         port.0,
                         GatewayHandle {
                             gtw: gtw.clone(),
-                            port,
+                            _port: port,
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },
                     );
