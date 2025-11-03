@@ -108,6 +108,7 @@ impl Transport for QuicTransport {
             quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(server_crypto)?));
         let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
         transport_config.max_concurrent_uni_streams(0_u8.into());
+        transport_config.max_idle_timeout(None);
 
         Ok(Endpoint::server(
             server_config,
@@ -163,8 +164,13 @@ impl Transport for QuicTransport {
             .with_root_certificates(roots)
             .with_no_client_auth();
         client_crypto.alpn_protocols = ALPN_GUNG.iter().map(|&x| x.into()).collect();
-        let client_config =
+        let mut client_config =
             quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(client_crypto)?));
+
+        let mut transport_config = quinn::TransportConfig::default();
+        transport_config.max_idle_timeout(None);
+        client_config.transport_config(Arc::new(transport_config));
+
         let mut endpoint = quinn::Endpoint::client("[::]:0".parse().unwrap())?;
         endpoint.set_default_client_config(client_config);
 
