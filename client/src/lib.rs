@@ -142,10 +142,6 @@ async fn handle_connection<T: Transport + 'static>(
                             ServerCommand::ForwardingStarted(server_addr) => {
                                 info!("Start forwarding to {server_addr}");
                             }
-                            ServerCommand::ForwardingFailed(msg) => {
-                                error!("Forwarding failed: {}", msg);
-                                break;
-                            }
                             ServerCommand::ForwardingShutdown => {
                                 info!("Server side shutdown");
                                 break;

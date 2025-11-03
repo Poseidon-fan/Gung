@@ -12,7 +12,6 @@ use tokio_util::{
 #[derive(Encode, Decode)]
 pub enum ServerCommand {
     ForwardingStarted(SocketAddr),
-    ForwardingFailed(String),
     ForwardingShutdown,
 }
 
