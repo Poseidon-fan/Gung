@@ -8,6 +8,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
+use protocol::constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use semver::Version;
 use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -134,12 +135,12 @@ async fn authenticate<T: Transport>(
         .next()
         .await
         .ok_or(anyhow::anyhow!("failed to read first request"))??;
-    let version = req.payload["version"]
+    let version = req.payload[VERSION_AUTH_FIELD]
         .as_str()
         .ok_or(anyhow::anyhow!("version is required"))?
         .parse::<Version>()?;
-    let proxy = serde_json::from_value(req.payload["proxy"].clone())?;
-    let server_ip = req.payload["server_ip"]
+    let proxy = serde_json::from_value(req.payload[PROXY_AUTH_FIELD].clone())?;
+    let server_ip = req.payload[SERVER_IP_AUTH_FIELD]
         .as_str()
         .ok_or(anyhow::anyhow!("server_ip is required"))?
         .parse::<IpAddr>()?;

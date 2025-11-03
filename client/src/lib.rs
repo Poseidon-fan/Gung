@@ -7,7 +7,10 @@ use config::client::{CliConfig, TransportType};
 
 use anyhow::{Result, bail};
 use futures_util::{SinkExt, StreamExt};
-use protocol::{ClientCommandCodec, ServerCommand, ServerCommandCodec};
+use protocol::{
+    cmd::{ClientCommandCodec, ServerCommand, ServerCommandCodec},
+    constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD},
+};
 use serde_json::Value as JsonValue;
 use tokio::{io, select};
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -161,15 +164,15 @@ async fn authenticate<T: Transport>(
         },
     };
     req.payload.as_object_mut().unwrap().insert(
-        "version".to_string(),
+        VERSION_AUTH_FIELD.to_string(),
         JsonValue::String(env!("CARGO_PKG_VERSION").to_string()),
     );
     req.payload.as_object_mut().unwrap().insert(
-        "proxy".to_string(),
+        PROXY_AUTH_FIELD.to_string(),
         serde_json::to_value(config.proxy.clone())?,
     );
     req.payload.as_object_mut().unwrap().insert(
-        "server_ip".to_string(),
+        SERVER_IP_AUTH_FIELD.to_string(),
         JsonValue::String(
             config
                 .transport

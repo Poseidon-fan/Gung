@@ -10,7 +10,7 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
-use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
+use protocol::cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     select,
@@ -213,7 +213,6 @@ impl<T: Gateway> GatewayManager<T> {
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },
                     );
-                    drop(gateways);
                     gtw.add_proxy(pxy_handle);
                     let gateway_shutdown_tx = self.gateway_shutdown_tx.clone();
                     tokio::spawn(async move {
