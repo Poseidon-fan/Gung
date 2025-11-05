@@ -425,14 +425,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gung"
-version = "0.1.0"
-dependencies = [
- "auth",
- "pyo3",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -726,6 +718,14 @@ dependencies = [
  "bincode",
  "futures-util",
  "tokio-util",
+]
+
+[[package]]
+name = "pylib"
+version = "0.1.0"
+dependencies = [
+ "auth",
+ "pyo3",
 ]
 
 [[package]]
