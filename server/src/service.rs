@@ -61,10 +61,10 @@ impl<T: Transport + 'static> Service<T> {
         loop {
             match self.transport.accept(&listener).await {
                 Ok((raw_conn, client_addr)) => {
-                    let authenticator = self.authenticator.clone();
-                    let transport = self.transport.clone();
+                    let authenticator = Arc::clone(&self.authenticator);
+                    let transport = Arc::clone(&self.transport);
                     let keepalive = self.config.transport.keepalive.clone();
-                    let gtw_mgrs = self.gtw_mgrs.clone();
+                    let gtw_mgrs = Arc::clone(&self.gtw_mgrs);
                     tokio::spawn(async move {
                         if let Err(e) = handle_connection::<T>(
                             raw_conn,

@@ -66,7 +66,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         loop {
             select! {
                 Some(req) = req_rx.recv() => {
-                    let this = proxy.clone();
+                    let this = Arc::clone(&proxy);
                     let data_channel = conn.open().await?;
                     tokio::spawn(async move {
                         debug!("Forwarding new request");
@@ -146,7 +146,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                     match acc {
                         Ok((raw_stream, _)) => {
                             println!("get outside req");
-                            let this = self.clone();
+                            let this = Arc::clone(&self);
                             tokio::spawn(async move {
                                 let req = Self::upgrade(raw_stream).await.unwrap();
                                 this.dispatch(req).await;
@@ -195,7 +195,7 @@ impl<T: Gateway> GatewayManager<T> {
         let (gateway_shutdown_tx, gateway_shutdown_rx) = mpsc::unbounded_channel();
         let gateways = Arc::new(Mutex::new(HashMap::new()));
         tokio::spawn(collect_gateway_shutdown(
-            gateways.clone(),
+            Arc::clone(&gateways),
             gateway_shutdown_rx,
         ));
         Self {
@@ -225,7 +225,7 @@ impl<T: Gateway> GatewayManager<T> {
             let mut gateways = self.gateways.lock().await;
             match gateways.get(&port_u16) {
                 Some(handle) => {
-                    let gtw = handle.gtw.clone();
+                    let gtw = Arc::clone(&handle.gtw);
                     let tx = handle.client_shutdown_tx.clone();
                     gtw.add_proxy(pxy_handle);
                     tx
@@ -238,7 +238,7 @@ impl<T: Gateway> GatewayManager<T> {
                     gateways.insert(
                         port.0,
                         GatewayHandle {
-                            gtw: gtw.clone(),
+                            gtw: Arc::clone(&gtw),
                             _port: port,
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },

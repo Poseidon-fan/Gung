@@ -83,8 +83,8 @@ impl<T: Transport + 'static> Client<T> {
         handle_connection::<T>(
             raw_conn,
             &self.config,
-            self.transport.clone(),
-            self.proxy.clone(),
+            Arc::clone(&self.transport),
+            Arc::clone(&self.proxy),
         )
         .await
     }
@@ -115,7 +115,7 @@ async fn handle_connection<T: Transport + 'static>(
                 match data_channel {
                     Ok(data_channel) => {
                         let local_addr = config.local_addr;
-                        let proxy = proxy.clone();
+                        let proxy = Arc::clone(&proxy);
                         tokio::spawn(async move {
                             info!("Forwarding new stream");
                             let _ = proxy.handle(data_channel, local_addr).await;
