@@ -22,3 +22,4 @@ target/
 
 .venv/
 .cert/
+__pycache__/
