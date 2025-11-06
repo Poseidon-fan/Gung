@@ -34,40 +34,30 @@ pub trait Proxy: 'static + Sized + Sync + Send {
     where
         T: AsyncRead + AsyncWrite + Send + Unpin;
 
-    #[instrument(name = "proxy:run", skip_all, fields(proxy_id = proxy_id))]
-    async fn run<T: LogicConnection>(
-        self,
-        proxy_id: String,
-        server_addr: SocketAddr,
-        keepalive: KeepaliveConfig,
-        mut req_rx: mpsc::UnboundedReceiver<Self::Request>,
-        conn: T,
-        (client_shutdown_tx, mut server_shutdown_rx): (
-            mpsc::UnboundedSender<String>,
-            oneshot::Receiver<()>,
-        ),
-    ) -> Result<()> {
+    #[instrument(name = "proxy:run", skip_all, fields(proxy_id = params.proxy_id))]
+    async fn run<T: LogicConnection>(self, mut params: ProxyStartupParams<Self, T>) -> Result<()> {
         // Wrap as Arc
         let proxy = Arc::new(self);
 
         // Request for a control channel
-        let ctl_channel = conn.open().await?;
+        let ctl_channel = params.conn.open().await?;
         let (client_cmd_reader, server_cmd_writer) = io::split(ctl_channel);
         let mut client_cmd_reader = FramedRead::new(client_cmd_reader, ClientCommandCodec);
         let mut server_cmd_writer = FramedWrite::new(server_cmd_writer, ServerCommandCodec);
         server_cmd_writer
-            .send(ServerCommand::ForwardingStarted(server_addr))
+            .send(ServerCommand::ForwardingStarted(params.server_addr))
             .await?;
 
-        let mut ping_ticker = time::interval(Duration::from_secs(keepalive.keepalive_interval));
+        let mut ping_ticker =
+            time::interval(Duration::from_secs(params.keepalive.keepalive_interval));
 
         info!("Proxy started");
 
         loop {
             select! {
-                Some(req) = req_rx.recv() => {
+                Some(req) = params.req_rx.recv() => {
                     let this = Arc::clone(&proxy);
-                    let data_channel = conn.open().await?;
+                    let data_channel = params.conn.open().await?;
                     tokio::spawn(async move {
                         debug!("Forwarding new request");
                         this.handle_one(req, data_channel).await;
@@ -78,14 +68,14 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     match client_cmd {
                         None | Some(Err(_)) => {
                             info!("Client side shutdown");
-                            let _ = client_shutdown_tx.send(proxy_id.clone());
+                            let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
                             return Ok(());
                         }
                         Some(Ok(client_cmd)) => {
                             match client_cmd {
                                 ClientCommand::ClientShutdown => {
                                     info!("Client side shutdown");
-                                    let _ = client_shutdown_tx.send(proxy_id.clone());
+                                    let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
                                     return Ok(());
                                 }
                                 ClientCommand::Ack => {}
@@ -99,20 +89,30 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     server_cmd_writer.send(ServerCommand::Ping).await?;
                 }
 
-                _ = &mut server_shutdown_rx => {
+                _ = &mut params.server_shutdown_rx => {
                     info!("Server side shutdown");
-                    let _ = client_shutdown_tx.send(proxy_id.clone());
+                    let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
                     return Ok(());
                 }
 
-                _ = time::sleep(Duration::from_secs(keepalive.keepalive_timeout)) => {
+                _ = time::sleep(Duration::from_secs(params.keepalive.keepalive_timeout)) => {
                     info!("Ping timeout");
-                    let _ = client_shutdown_tx.send(proxy_id.clone());
+                    let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
                     return Ok(());
                 }
             }
         }
     }
+}
+
+struct ProxyStartupParams<P: Proxy, T: LogicConnection> {
+    pub proxy_id: String,
+    pub server_addr: SocketAddr,
+    pub keepalive: KeepaliveConfig,
+    pub req_rx: mpsc::UnboundedReceiver<P::Request>,
+    pub conn: T,
+    pub client_shutdown_tx: mpsc::UnboundedSender<String>,
+    pub server_shutdown_rx: oneshot::Receiver<()>,
 }
 
 pub struct ProxyHandle<T: Proxy> {
@@ -254,17 +254,17 @@ impl<T: Gateway> GatewayManager<T> {
             }
         };
         tokio::spawn(async move {
+            let params = ProxyStartupParams {
+                proxy_id: proxy_id.clone(),
+                server_addr: SocketAddr::from((server_ip, port_u16)),
+                keepalive,
+                req_rx,
+                conn,
+                client_shutdown_tx,
+                server_shutdown_rx,
+            };
             // TODO(Poseidon): handle error here
-            let _ = proxy
-                .run(
-                    proxy_id.clone(),
-                    SocketAddr::from((server_ip, port_u16)),
-                    keepalive,
-                    req_rx,
-                    conn,
-                    (client_shutdown_tx, server_shutdown_rx),
-                )
-                .await;
+            let _ = proxy.run(params).await;
         });
 
         Ok(())
