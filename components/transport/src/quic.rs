@@ -191,6 +191,11 @@ impl Transport for QuicTransport {
     ) -> anyhow::Result<Self::Connection> {
         Ok(QuicConnection(raw_conn.conn))
     }
+
+    async fn abolish(&self, mut raw_conn: Self::RawConnection) {
+        _ = raw_conn.stream.sender.finish();
+        _ = raw_conn.stream.sender.stopped().await;
+    }
 }
 
 #[async_trait]

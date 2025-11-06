@@ -47,6 +47,8 @@ pub trait Transport: Send + Sync {
 
     fn establish(&self, raw_conn: Self::RawConnection, is_server: bool)
     -> Result<Self::Connection>;
+
+    async fn abolish(&self, raw_conn: Self::RawConnection);
 }
 
 #[async_trait]

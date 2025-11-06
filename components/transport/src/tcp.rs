@@ -3,7 +3,10 @@ use std::net::{SocketAddr, ToSocketAddrs};
 use anyhow::anyhow;
 use async_trait::async_trait;
 use config::server::{ProtocolConfig, TransportConfig};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::AsyncWriteExt,
+    net::{TcpListener, TcpStream},
+};
 
 use crate::{LogicConnection, Transport};
 
@@ -77,6 +80,10 @@ impl Transport for TcpTransport {
                 net_mux::Config::default(),
             )),
         }
+    }
+
+    async fn abolish(&self, mut raw_conn: Self::RawConnection) {
+        _ = raw_conn.shutdown().await;
     }
 }
 

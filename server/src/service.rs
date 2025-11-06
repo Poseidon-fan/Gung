@@ -95,12 +95,18 @@ async fn handle_connection<T: Transport + 'static>(
     transport: Arc<T>,
 ) -> Result<()> {
     // Authenticate the connection
-    let context = authenticate::<T>(&mut raw_conn, client_addr, authenticator)
-        .await
-        .with_context(|| "Authentication failed")?;
-    info!("Authenticated successfully");
+    let (context, conn) = match authenticate::<T>(&mut raw_conn, client_addr, authenticator).await {
+        Ok(context) => {
+            info!("Authenticated successfully");
+            (context, transport.establish(raw_conn, true)?)
+        }
+        Err(e) => {
+            info!("Authentication failed: {e}");
+            transport.abolish(raw_conn).await;
+            return Ok(());
+        }
+    };
 
-    let conn = transport.establish(raw_conn, true)?;
     match context.proxy.proxy_type {
         config::client::ProxyType::Tcp => {
             let proxy = TcpProxy::from_client_config(&context.proxy)?;

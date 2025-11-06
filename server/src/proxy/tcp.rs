@@ -7,6 +7,7 @@ use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
 };
+use tracing::debug;
 
 use crate::proxy::{Gateway, Proxy, ProxyHandle};
 
@@ -29,9 +30,9 @@ impl Proxy for TcpProxy {
     where
         T: AsyncRead + AsyncWrite + Send + Unpin,
     {
-        println!("start forwarding");
+        debug!("start forwarding tcp");
         let _ = io::copy_bidirectional(&mut req, &mut channel).await;
-        println!("finish forwarding");
+        debug!("finish forwarding tcp");
     }
 }
 

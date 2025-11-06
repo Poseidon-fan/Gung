@@ -97,9 +97,12 @@ async fn handle_connection<T: Transport + 'static>(
     transport: Arc<T>,
     proxy: Arc<dyn Proxy<Stream = T::Channel>>,
 ) -> Result<()> {
-    authenticate::<T>(&mut raw_conn, config)
-        .await
-        .with_context(|| "Authentication failed")?;
+    if let Err(e) = authenticate::<T>(&mut raw_conn, config).await {
+        error!("Authentication failed: {e}");
+        transport.abolish(raw_conn).await;
+        return Ok(());
+    }
+
     info!("Authentication successfully");
 
     let conn = transport.establish(raw_conn, false)?;
