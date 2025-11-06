@@ -9,5 +9,5 @@ pub struct PluginConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct PythonPluginConfig {
-    pub base_path: PathBuf,
+    pub base_pkg_path: PathBuf,
 }

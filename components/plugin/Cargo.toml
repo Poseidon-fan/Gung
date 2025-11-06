@@ -9,4 +9,3 @@ license.workspace = true
 anyhow = { workspace = true }
 pyo3 = { workspace = true }
 config = { path = "../config" }
-pylib = { path = "../../pylib" }

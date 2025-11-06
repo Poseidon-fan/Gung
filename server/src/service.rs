@@ -48,10 +48,6 @@ impl<T: Transport + 'static> Service<T> {
     }
 
     pub async fn run(&mut self, transport_option: T::TransportServerOption) -> Result<()> {
-        // TODO(Poseidon): support allowed ports
-        port::init(None)?;
-        plugin::init(&self.config.plugin)?;
-
         let listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)

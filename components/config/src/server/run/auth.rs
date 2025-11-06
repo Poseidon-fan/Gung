@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -11,4 +13,11 @@ pub struct AuthConfig {
 pub enum AuthenticatorConfig {
     #[serde(rename = "pass")]
     Pass,
+    #[serde(rename = "py_plugin")]
+    PyPlugin(PyPluginAuthenticatorConfig),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PyPluginAuthenticatorConfig {
+    pub file_path: PathBuf,
 }

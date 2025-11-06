@@ -25,6 +25,7 @@ pub enum AuthResp {
 }
 
 #[pyclass]
+#[derive(Clone)]
 pub struct AuthContext {
     pub auth_id: String,
     pub server_ip: IpAddr,
@@ -71,29 +72,21 @@ impl AuthReq {
 }
 
 #[pymethods]
-impl AuthAcceptResp {
-    #[new]
-    pub fn new(msg: String) -> Self {
-        Self { msg }
+impl AuthResp {
+    #[staticmethod]
+    pub fn accept(msg: String) -> Self {
+        Self::Accept(AuthAcceptResp { msg })
     }
-}
-
-#[pymethods]
-impl AuthRejectResp {
-    #[new]
-    fn new(msg: String) -> Self {
-        Self { msg }
+    #[staticmethod]
+    pub fn reject(msg: String) -> Self {
+        Self::Reject(AuthRejectResp { msg })
     }
-}
-
-#[pymethods]
-impl AuthChallengeResp {
-    #[new]
-    pub fn new(msg: String, required_fields: Vec<String>) -> Self {
-        Self {
+    #[staticmethod]
+    pub fn challenge(msg: String, required_fields: Vec<String>) -> Self {
+        Self::Challenge(AuthChallengeResp {
             msg,
             required_fields,
-        }
+        })
     }
 }
 

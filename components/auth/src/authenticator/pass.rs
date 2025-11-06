@@ -3,7 +3,7 @@ use async_trait::async_trait;
 
 use crate::{
     Authenticator,
-    msg::{AuthAcceptResp, AuthContext, AuthResp},
+    msg::{AuthContext, AuthResp},
 };
 
 #[derive(Default)]
@@ -18,6 +18,6 @@ impl PassAuthenticator {
 #[async_trait]
 impl Authenticator for PassAuthenticator {
     async fn authenticate(&self, _ctx: &AuthContext) -> Result<AuthResp> {
-        Ok(AuthResp::Accept(AuthAcceptResp::new("pass".to_string())))
+        Ok(AuthResp::accept("pass".to_string()))
     }
 }

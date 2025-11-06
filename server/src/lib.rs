@@ -2,7 +2,8 @@ mod port;
 pub(crate) mod proxy;
 mod service;
 
-use anyhow::{Ok, Result};
+use anyhow::Result;
+use pyo3::prelude::*;
 
 use config::server::{ProtocolConfig, RunConfig};
 use transport::{QuicTransport, TcpTransport};
@@ -11,6 +12,7 @@ use crate::service::Service;
 
 #[tokio::main]
 pub async fn run_server(run_config: RunConfig) -> Result<()> {
+    init(&run_config)?;
     match run_config.transport.protocol {
         ProtocolConfig::Quic(_) => {
             let (mut service, transport_option) = Service::<QuicTransport>::from(run_config)?;
@@ -22,5 +24,22 @@ pub async fn run_server(run_config: RunConfig) -> Result<()> {
         }
     };
 
+    Ok(())
+}
+
+fn init(config: &RunConfig) -> Result<()> {
+    if config.plugin.python.is_some() {
+        pyo3::append_to_inittab!(gung);
+    }
+    plugin::init(&config.plugin)?;
+    // TODO(Poseidon): support allowed ports
+    port::init(None)?;
+    Ok(())
+}
+
+// Declare here to avoid circular dependency
+#[pymodule]
+fn gung(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    auth::register_module(m)?;
     Ok(())
 }

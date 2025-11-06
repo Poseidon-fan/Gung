@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use config::server::{AuthConfig, AuthenticatorConfig};
 use pyo3::prelude::*;
 
-use crate::authenticator::pass::PassAuthenticator;
+use crate::authenticator::{pass::PassAuthenticator, py_plugin::PyPluginAuthenticator};
 
 pub use authenticator::*;
 pub use msg::*;
@@ -19,8 +19,9 @@ pub trait Authenticator: Sync + Send {
 }
 
 pub fn from(config: &AuthConfig) -> Result<Arc<dyn Authenticator>> {
-    match config.authenticator {
+    match &config.authenticator {
         AuthenticatorConfig::Pass => Ok(Arc::new(PassAuthenticator::new())),
+        AuthenticatorConfig::PyPlugin(config) => Ok(Arc::new(PyPluginAuthenticator::new(config)?)),
     }
 }
 

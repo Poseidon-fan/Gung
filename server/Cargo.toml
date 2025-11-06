@@ -30,6 +30,8 @@ auth = { path = "../components/auth" }
 protocol = { path = "../components/protocol" }
 plugin = { path = "../components/plugin" }
 
+pyo3 = { workspace = true }
+
 
 [[bin]]
 name = "gungs"
