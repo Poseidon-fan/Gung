@@ -24,13 +24,12 @@ tokio-util = { workspace = true }
 futures-util = { workspace = true }
 semver = { workspace = true }
 atty = { workspace = true }
+pyo3 = { workspace = true }
 transport = { path = "../components/transport" }
 config = { path = "../components/config" }
 auth = { path = "../components/auth" }
 protocol = { path = "../components/protocol" }
 plugin = { path = "../components/plugin" }
-
-pyo3 = { workspace = true }
 
 
 [[bin]]

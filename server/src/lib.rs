@@ -3,7 +3,7 @@ pub(crate) mod proxy;
 mod service;
 
 use anyhow::Result;
-use pyo3::prelude::*;
+use pyo3::{append_to_inittab, prelude::*};
 
 use config::server::{ProtocolConfig, RunConfig};
 use transport::{QuicTransport, TcpTransport};
@@ -29,7 +29,7 @@ pub async fn run_server(run_config: RunConfig) -> Result<()> {
 
 fn init(config: &RunConfig) -> Result<()> {
     if config.plugin.python.is_some() {
-        pyo3::append_to_inittab!(gung);
+        append_to_inittab!(gung);
     }
     plugin::init(&config.plugin)?;
     // TODO(Poseidon): support allowed ports

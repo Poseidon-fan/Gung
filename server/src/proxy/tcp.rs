@@ -55,12 +55,14 @@ impl Gateway for TcpGateway {
         self.listener.accept().await.map_err(anyhow::Error::from)
     }
 
-    async fn upgrade(raw_stream: Self::RawStream) -> Result<<Self::Proxy as Proxy>::Request> {
-        Ok(raw_stream)
-    }
-
-    async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request) {
-        let _ = self.proxy_handle.lock().as_ref().unwrap().req_tx.send(req);
+    async fn dispatch(&self, stream: Self::RawStream) {
+        let _ = self
+            .proxy_handle
+            .lock()
+            .as_ref()
+            .unwrap()
+            .req_tx
+            .send(stream);
     }
 
     fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>) {

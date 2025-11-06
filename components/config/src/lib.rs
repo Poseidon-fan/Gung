@@ -1,5 +1,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 
+use serde_json::Value as JsonValue;
+
 pub mod client;
 pub mod server;
 
@@ -34,4 +36,8 @@ pub(crate) fn parse_addr_with_default_port<const P: u16>(s: &str) -> Result<Sock
         let addr_str = format!("{s}:{P}");
         parse_addr(&addr_str)
     }
+}
+
+fn parse_json(s: &str) -> Result<JsonValue, String> {
+    serde_json::from_str(s).map_err(|e| e.to_string())
 }

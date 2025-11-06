@@ -9,7 +9,7 @@ pub use proxy::*;
 use serde_json::Value as JsonValue;
 pub use transport::*;
 
-use crate::parse_addr_with_default_host;
+use crate::{parse_addr_with_default_host, parse_json};
 
 #[derive(Debug, Parser)]
 #[command(name = "gungc", about = "Gung client")]
@@ -26,6 +26,6 @@ pub struct CliConfig {
     #[clap(flatten)]
     pub transport: TransportConfig,
 
-    #[arg(long, short = 'd')]
+    #[arg(long, short = 'd', value_parser = parse_json)]
     pub data: Option<JsonValue>,
 }

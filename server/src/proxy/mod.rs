@@ -1,3 +1,4 @@
+pub mod http;
 pub mod tcp;
 
 use std::{
@@ -130,9 +131,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
     async fn accept(&self) -> Result<(Self::RawStream, SocketAddr)>;
 
-    async fn upgrade(raw_stream: Self::RawStream) -> Result<<Self::Proxy as Proxy>::Request>;
-
-    async fn dispatch(&self, req: <Self::Proxy as Proxy>::Request);
+    async fn dispatch(&self, stream: Self::RawStream);
 
     async fn run(
         self: Arc<Self>,
@@ -145,11 +144,9 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                 acc = self.accept() => {
                     match acc {
                         Ok((raw_stream, _)) => {
-                            println!("get outside req");
                             let this = Arc::clone(&self);
                             tokio::spawn(async move {
-                                let req = Self::upgrade(raw_stream).await.unwrap();
-                                this.dispatch(req).await;
+                                this.dispatch(raw_stream).await;
                             });
                         },
                         Err(_) => {
