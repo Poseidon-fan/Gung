@@ -681,6 +681,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b870d8c151b6f2fb93e84a13146138f05d02ed11c7e7c54f8826aaaf7c9f184"
 
 [[package]]
+name = "plugin"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "config",
+ "pylib",
+ "pyo3",
+]
+
+[[package]]
 name = "portable-atomic"
 version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1184,6 +1194,7 @@ dependencies = [
  "directories-next",
  "futures-util",
  "parking_lot",
+ "plugin",
  "protocol",
  "rand_set",
  "rcgen",

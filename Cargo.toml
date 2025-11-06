@@ -17,7 +17,7 @@ anyhow = "1.0"
 tokio = { version = "1", features = ["full"] }
 pyo3 = { version = "0.26.0", features = [
     "auto-initialize",
-    "extension-module",
+    # "extension-module",
     "serde",
 ] }
 pythonize = "0.26.0"
