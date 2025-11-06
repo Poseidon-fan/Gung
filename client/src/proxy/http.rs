@@ -2,6 +2,7 @@ use std::{marker::PhantomData, net::SocketAddr};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use tokio::{io, net::TcpStream};
 use transport::Transport;
 
 use crate::proxy::Proxy;
@@ -18,9 +19,15 @@ impl<T: Transport> Proxy for HttpProxy<T> {
     where
         Self: Sized,
     {
-        todo!()
+        Ok(Self {
+            _phantom: PhantomData,
+        })
     }
-    async fn handle(&self, _stream: Self::Stream, _local_addr: SocketAddr) -> Result<()> {
-        todo!()
+    async fn handle(&self, mut stream: Self::Stream, local_addr: SocketAddr) -> Result<()> {
+        let mut local_socket = TcpStream::connect(local_addr).await?;
+        println!("start forwarding");
+        let _ = io::copy_bidirectional(&mut stream, &mut local_socket).await;
+        println!("finish forwarding");
+        Ok(())
     }
 }

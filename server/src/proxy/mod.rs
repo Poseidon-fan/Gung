@@ -23,7 +23,10 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, info, instrument};
 use transport::LogicConnection;
 
-use crate::{port::Port, proxy::tcp::TcpGateway};
+use crate::{
+    port::Port,
+    proxy::{http::HttpGateway, tcp::TcpGateway},
+};
 
 #[async_trait]
 pub trait Proxy: 'static + Sized + Sync + Send {
@@ -33,7 +36,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
 
     async fn handle_one<T>(&self, req: Self::Request, channel: T)
     where
-        T: AsyncRead + AsyncWrite + Send + Unpin;
+        T: AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
     #[instrument(name = "proxy:run", skip_all, fields(proxy_id = params.proxy_id))]
     async fn run<T: LogicConnection>(self, mut params: ProxyStartupParams<Self, T>) -> Result<()> {
@@ -185,6 +188,7 @@ pub struct GatewayManager<T: Gateway> {
 #[derive(Default)]
 pub struct GatewayRegistry {
     pub tcp_mgr: Option<GatewayManager<TcpGateway>>,
+    pub http_mgr: Option<GatewayManager<HttpGateway>>,
 }
 
 impl<T: Gateway> GatewayManager<T> {
@@ -285,6 +289,9 @@ impl TryFrom<&config::server::ProxyConfig> for GatewayRegistry {
         let mut registry = Self::default();
         if let Some(_tcp_config) = config.tcp.as_ref() {
             registry.tcp_mgr = Some(GatewayManager::<TcpGateway>::new());
+        }
+        if let Some(_http_config) = config.http.as_ref() {
+            registry.http_mgr = Some(GatewayManager::<HttpGateway>::new());
         }
         Ok(registry)
     }

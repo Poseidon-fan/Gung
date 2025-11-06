@@ -28,7 +28,7 @@ impl Proxy for TcpProxy {
 
     async fn handle_one<T>(&self, mut req: Self::Request, mut channel: T)
     where
-        T: AsyncRead + AsyncWrite + Send + Unpin,
+        T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     {
         debug!("start forwarding tcp");
         let _ = io::copy_bidirectional(&mut req, &mut channel).await;

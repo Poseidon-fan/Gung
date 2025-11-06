@@ -25,6 +25,9 @@ futures-util = { workspace = true }
 semver = { workspace = true }
 atty = { workspace = true }
 pyo3 = { workspace = true }
+hyper = { workspace = true }
+http-body-util = { workspace = true }
+hyper-util = { workspace = true }
 transport = { path = "../components/transport" }
 config = { path = "../components/config" }
 auth = { path = "../components/auth" }

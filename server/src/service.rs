@@ -18,7 +18,7 @@ use transport::Transport;
 
 use crate::{
     port,
-    proxy::{GatewayRegistry, Proxy, tcp::TcpProxy},
+    proxy::{GatewayRegistry, Proxy, http::HttpProxy, tcp::TcpProxy},
 };
 
 pub struct Service<T: Transport> {
@@ -126,7 +126,21 @@ async fn handle_connection<T: Transport + 'static>(
                 .await?;
         }
         config::client::ProxyType::Http => {
-            todo!()
+            let proxy = HttpProxy::from_client_config(&context.proxy)?;
+            gtw_mgrs
+                .as_ref()
+                .http_mgr
+                .as_ref()
+                .ok_or(anyhow!("HTTP manager not supported"))?
+                .register(
+                    proxy,
+                    context.auth_id.clone(),
+                    context.server_ip,
+                    keepalive,
+                    port::alloc(context.proxy.proxy_params.remote_port)?,
+                    conn,
+                )
+                .await?;
         }
     };
     Ok(())
