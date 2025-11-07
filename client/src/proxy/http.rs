@@ -2,7 +2,9 @@ use std::{marker::PhantomData, net::SocketAddr};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio::{io, net::TcpStream};
+use hyper::{Request, body::Incoming, service::service_fn};
+use hyper_util::rt::TokioIo;
+use tokio::net::TcpStream;
 use transport::Transport;
 
 use crate::proxy::Proxy;
@@ -23,11 +25,26 @@ impl<T: Transport> Proxy for HttpProxy<T> {
             _phantom: PhantomData,
         })
     }
-    async fn handle(&self, mut stream: Self::Stream, local_addr: SocketAddr) -> Result<()> {
-        let mut local_socket = TcpStream::connect(local_addr).await?;
-        println!("start forwarding");
-        let _ = io::copy_bidirectional(&mut stream, &mut local_socket).await;
-        println!("finish forwarding");
-        Ok(())
+    async fn handle(&self, stream: Self::Stream, local_addr: SocketAddr) -> Result<()> {
+        let service = service_fn(move |req: Request<Incoming>| {
+            let local_addr = local_addr;
+            async move {
+                let local_socket = TcpStream::connect(local_addr)
+                    .await
+                    .map_err(anyhow::Error::from)?;
+                let io_stream = TokioIo::new(local_socket);
+                let (mut sender, conn) = hyper::client::conn::http1::Builder::new()
+                    .handshake(io_stream)
+                    .await?;
+                tokio::spawn(conn);
+                sender.send_request(req).await.map_err(anyhow::Error::from)
+            }
+        });
+
+        let io_stream = TokioIo::new(stream);
+        hyper::server::conn::http1::Builder::new()
+            .serve_connection(io_stream, service)
+            .await
+            .map_err(anyhow::Error::from)
     }
 }

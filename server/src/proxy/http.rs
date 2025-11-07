@@ -50,7 +50,6 @@ impl Proxy for HttpProxy {
         T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     {
         let io_stream = TokioIo::new(channel);
-        // let _host = req.req.uri().host().unwrap();
         let (mut sender, conn) = hyper::client::conn::http1::Builder::new()
             .handshake(io_stream)
             .await?;
