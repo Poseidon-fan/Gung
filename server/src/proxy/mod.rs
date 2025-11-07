@@ -25,7 +25,7 @@ use tracing::{debug, error, info, instrument, warn};
 use transport::LogicConnection;
 
 use crate::{
-    port::Port,
+    port::{self, Port},
     proxy::{http::HttpGateway, tcp::TcpGateway},
 };
 
@@ -237,10 +237,9 @@ impl<T: Gateway> GatewayManager<T> {
         proxy: T::Proxy,
         auth_ctx: AuthContext,
         config: Arc<RunConfig>,
-        port: Port,
+        pointed_port: Option<u16>,
         conn: K,
     ) -> Result<()> {
-        let port_u16 = port.0;
         let proxy_id = auth_ctx.auth_id.clone();
         let (req_tx, req_rx) = mpsc::unbounded_channel();
         let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
@@ -249,41 +248,53 @@ impl<T: Gateway> GatewayManager<T> {
             req_tx,
             server_shutdown_tx,
         };
+
         let (pxy_addr, client_shutdown_tx) = {
             let mut gateways = self.gateways.lock().await;
-            match gateways.get(&port_u16) {
-                // There's already a gateway listening on the port. just add the proxy to the gateway.
-                Some(handle) => {
-                    let gtw = Arc::clone(&handle.gtw);
-                    let tx = handle.client_shutdown_tx.clone();
-                    let pxy_addr = gtw.add_proxy(pxy_handle, port_u16, &auth_ctx.proxy)?;
-                    (pxy_addr, tx)
+
+            // Try to use an existing gateway or create a new one.
+            match pointed_port.and_then(|port| gateways.get(&port).map(|gateway| (port, gateway))) {
+                Some((port, existing_gateway)) => {
+                    // Use existing gateway.
+                    let gtw = Arc::clone(&existing_gateway.gtw);
+                    let client_shutdown_tx = existing_gateway.client_shutdown_tx.clone();
+                    let pxy_addr = gtw.add_proxy(pxy_handle, port, &auth_ctx.proxy)?;
+                    (pxy_addr, client_shutdown_tx)
                 }
-                // There's no gateway listening on the port. start a new one.
                 None => {
+                    // Allocate a port for the gateway, the port will be freed automatically when the proxy is closed.
+                    let allocated_port = port::alloc(pointed_port)?;
+                    let allocated_port_u16 = allocated_port.0;
+
                     let gtw = Arc::new(
                         T::bind(
-                            SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0)),
+                            SocketAddr::from((Ipv4Addr::UNSPECIFIED, allocated_port_u16)),
                             &config.proxy,
                         )
                         .await?,
                     );
+
                     let (client_shutdown_tx, client_shutdown_rx) = mpsc::unbounded_channel();
 
                     gateways.insert(
-                        port.0,
+                        allocated_port_u16,
                         GatewayHandle {
                             gtw: Arc::clone(&gtw),
-                            _port: port,
+                            _port: allocated_port,
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },
                     );
-                    let pxy_addr = gtw.add_proxy(pxy_handle, port_u16, &auth_ctx.proxy)?;
+
+                    let pxy_addr =
+                        gtw.add_proxy(pxy_handle, allocated_port_u16, &auth_ctx.proxy)?;
+
+                    // Start gateway runtime task.
                     let gateway_shutdown_tx = self.gateway_shutdown_tx.clone();
                     tokio::spawn(async move {
-                        gtw.run(port_u16, client_shutdown_rx, gateway_shutdown_tx)
+                        gtw.run(allocated_port_u16, client_shutdown_rx, gateway_shutdown_tx)
                             .await;
                     });
+
                     (pxy_addr, client_shutdown_tx)
                 }
             }

@@ -16,10 +16,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{error, info, instrument, warn};
 use transport::Transport;
 
-use crate::{
-    port,
-    proxy::{GatewayRegistry, Proxy, http::HttpProxy, tcp::TcpProxy},
-};
+use crate::proxy::{GatewayRegistry, Proxy, http::HttpProxy, tcp::TcpProxy};
 
 pub struct Service<T: Transport> {
     config: Arc<RunConfig>,
@@ -107,9 +104,7 @@ async fn handle_connection<T: Transport + 'static>(
         }
     };
 
-    // Allocate a port for the proxy, the port will be freed automatically when the proxy is closed.
-    let port = port::alloc(context.proxy.proxy_params.remote_port)?;
-
+    let pointed_port = context.proxy.proxy_params.remote_port;
     match context.proxy.proxy_type {
         config::client::ProxyType::Tcp => {
             let proxy = TcpProxy::from_client_config(&context.proxy)?;
@@ -118,7 +113,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .tcp_mgr
                 .as_ref()
                 .ok_or(anyhow!("TCP manager not supported"))?
-                .register(proxy, context, config, port, conn)
+                .register(proxy, context, config, pointed_port, conn)
                 .await?;
         }
         config::client::ProxyType::Http => {
@@ -128,7 +123,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .http_mgr
                 .as_ref()
                 .ok_or(anyhow!("HTTP manager not supported"))?
-                .register(proxy, context, config, port, conn)
+                .register(proxy, context, config, pointed_port, conn)
                 .await?;
         }
     };
