@@ -23,8 +23,3 @@ config = { path = "../components/config" }
 transport = { path = "../components/transport" }
 auth = { path = "../components/auth" }
 protocol = { path = "../components/protocol" }
-
-
-[[bin]]
-name = "gungc"
-path = "src/main.rs"

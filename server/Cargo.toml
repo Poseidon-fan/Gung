@@ -37,8 +37,3 @@ config = { path = "../components/config" }
 auth = { path = "../components/auth" }
 protocol = { path = "../components/protocol" }
 plugin = { path = "../components/plugin" }
-
-
-[[bin]]
-name = "gungs"
-path = "src/main.rs"

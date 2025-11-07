@@ -1,5 +1,5 @@
 [workspace]
-members = ["server", "client", "components/*"]
+members = ["server", "client", "components/*", "gung-cli"]
 exclude = ["pylib"]
 resolver = "2"
 
