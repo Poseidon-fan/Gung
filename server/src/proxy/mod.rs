@@ -11,7 +11,7 @@ use std::{
 use anyhow::Result;
 use async_trait::async_trait;
 use auth::AuthContext;
-use config::server::KeepaliveConfig;
+use config::server::{KeepaliveConfig, RunConfig};
 use futures_util::{SinkExt, StreamExt};
 use protocol::cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
@@ -21,7 +21,7 @@ use tokio::{
     time,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, info, instrument};
+use tracing::{debug, info, instrument, warn};
 use transport::LogicConnection;
 
 use crate::{
@@ -35,7 +35,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
 
     fn from_client_config(config: &config::client::ProxyConfig) -> Result<Self>;
 
-    async fn handle_one<T>(&self, req: Self::Request, channel: T)
+    async fn handle_one<T>(&self, req: Self::Request, channel: T) -> Result<()>
     where
         T: AsyncRead + AsyncWrite + Send + Unpin + 'static;
 
@@ -50,7 +50,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         let mut client_cmd_reader = FramedRead::new(client_cmd_reader, ClientCommandCodec);
         let mut server_cmd_writer = FramedWrite::new(server_cmd_writer, ServerCommandCodec);
         server_cmd_writer
-            .send(ServerCommand::ForwardingStarted(params.server_addr))
+            .send(ServerCommand::ForwardingStarted(params.pxy_addr))
             .await?;
 
         let mut ping_ticker =
@@ -65,7 +65,9 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     let data_channel = params.conn.open().await?;
                     tokio::spawn(async move {
                         debug!("Forwarding new request");
-                        this.handle_one(req, data_channel).await;
+                        if let Err(e) = this.handle_one(req, data_channel).await {
+                            warn!("Failed to handle request: {}", e);
+                        }
                     });
                 }
 
@@ -112,7 +114,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
 
 struct ProxyStartupParams<P: Proxy, T: LogicConnection> {
     pub proxy_id: String,
-    pub server_addr: SocketAddr,
+    pub pxy_addr: String,
     pub keepalive: KeepaliveConfig,
     pub req_rx: mpsc::UnboundedReceiver<P::Request>,
     pub conn: T,
@@ -135,7 +137,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 
     async fn accept(&self) -> Result<(Self::RawStream, SocketAddr)>;
 
-    async fn dispatch(&self, stream: Self::RawStream);
+    async fn dispatch(&self, stream: Self::RawStream) -> Result<()>;
 
     async fn run(
         self: Arc<Self>,
@@ -150,7 +152,9 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                         Ok((raw_stream, _)) => {
                             let this = Arc::clone(&self);
                             tokio::spawn(async move {
-                                this.dispatch(raw_stream).await;
+                                if let Err(e) = this.dispatch(raw_stream).await {
+                                    warn!("Failed to dispatch request: {}", e);
+                                }
                             });
                         },
                         Err(_) => {
@@ -168,7 +172,12 @@ pub trait Gateway: 'static + Sized + Send + Sync {
         }
     }
 
-    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, config: &config::client::ProxyConfig);
+    fn add_proxy(
+        &self,
+        handle: ProxyHandle<Self::Proxy>,
+        port: u16,
+        config: &config::client::ProxyConfig,
+    ) -> Result<String>;
 
     fn remove_proxy(&self, proxy_id: String);
 
@@ -210,7 +219,7 @@ impl<T: Gateway> GatewayManager<T> {
         &self,
         proxy: T::Proxy,
         auth_ctx: AuthContext,
-        keepalive: KeepaliveConfig,
+        config: Arc<RunConfig>,
         port: Port,
         conn: K,
     ) -> Result<()> {
@@ -223,14 +232,14 @@ impl<T: Gateway> GatewayManager<T> {
             req_tx,
             server_shutdown_tx,
         };
-        let client_shutdown_tx = {
+        let (pxy_addr, client_shutdown_tx) = {
             let mut gateways = self.gateways.lock().await;
             match gateways.get(&port_u16) {
                 Some(handle) => {
                     let gtw = Arc::clone(&handle.gtw);
                     let tx = handle.client_shutdown_tx.clone();
-                    gtw.add_proxy(pxy_handle, &auth_ctx.proxy);
-                    tx
+                    let pxy_addr = gtw.add_proxy(pxy_handle, port_u16, &auth_ctx.proxy)?;
+                    (pxy_addr, tx)
                 }
                 None => {
                     let gtw =
@@ -245,21 +254,21 @@ impl<T: Gateway> GatewayManager<T> {
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },
                     );
-                    gtw.add_proxy(pxy_handle, &auth_ctx.proxy);
+                    let pxy_addr = gtw.add_proxy(pxy_handle, port_u16, &auth_ctx.proxy)?;
                     let gateway_shutdown_tx = self.gateway_shutdown_tx.clone();
                     tokio::spawn(async move {
                         gtw.run(port_u16, client_shutdown_rx, gateway_shutdown_tx)
                             .await;
                     });
-                    client_shutdown_tx
+                    (pxy_addr, client_shutdown_tx)
                 }
             }
         };
         tokio::spawn(async move {
             let params = ProxyStartupParams {
                 proxy_id: proxy_id.clone(),
-                server_addr: SocketAddr::from((auth_ctx.server_ip, port_u16)),
-                keepalive,
+                pxy_addr,
+                keepalive: config.transport.keepalive.clone(),
                 req_rx,
                 conn,
                 client_shutdown_tx,

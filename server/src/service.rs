@@ -6,7 +6,7 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
-use config::server::{KeepaliveConfig, RunConfig};
+use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
 use protocol::constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use semver::Version;
@@ -60,13 +60,13 @@ impl<T: Transport + 'static> Service<T> {
                 Ok((raw_conn, client_addr)) => {
                     let authenticator = Arc::clone(&self.authenticator);
                     let transport = Arc::clone(&self.transport);
-                    let keepalive = self.config.transport.keepalive.clone();
+                    let config = Arc::clone(&self.config);
                     let gtw_mgrs = Arc::clone(&self.gtw_mgrs);
                     tokio::spawn(async move {
                         if let Err(e) = handle_connection::<T>(
                             raw_conn,
                             client_addr,
-                            keepalive,
+                            config,
                             authenticator,
                             gtw_mgrs,
                             transport,
@@ -89,7 +89,7 @@ impl<T: Transport + 'static> Service<T> {
 async fn handle_connection<T: Transport + 'static>(
     mut raw_conn: T::RawConnection,
     client_addr: SocketAddr,
-    keepalive: KeepaliveConfig,
+    config: Arc<RunConfig>,
     authenticator: Arc<dyn Authenticator>,
     gtw_mgrs: Arc<GatewayRegistry>,
     transport: Arc<T>,
@@ -116,7 +116,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .tcp_mgr
                 .as_ref()
                 .ok_or(anyhow!("TCP manager not supported"))?
-                .register(proxy, context, keepalive, port, conn)
+                .register(proxy, context, config, port, conn)
                 .await?;
         }
         config::client::ProxyType::Http => {
@@ -126,7 +126,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .http_mgr
                 .as_ref()
                 .ok_or(anyhow!("HTTP manager not supported"))?
-                .register(proxy, context, keepalive, port, conn)
+                .register(proxy, context, config, port, conn)
                 .await?;
         }
     };

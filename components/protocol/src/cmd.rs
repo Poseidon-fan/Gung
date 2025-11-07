@@ -1,7 +1,5 @@
 // Commands transferred through data channel
 
-use std::net::SocketAddr;
-
 use anyhow::bail;
 use bincode::{Decode, Encode};
 use tokio_util::{
@@ -11,7 +9,7 @@ use tokio_util::{
 
 #[derive(Encode, Decode)]
 pub enum ServerCommand {
-    ForwardingStarted(SocketAddr),
+    ForwardingStarted(String),
     ForwardingShutdown,
     Ping,
 }

@@ -28,4 +28,10 @@ pub struct ProxyParams {
     #[pyo3(get)]
     #[arg(long, short = 'r')]
     pub remote_port: Option<u16>,
+    #[pyo3(get)]
+    #[arg(long, conflicts_with = "sub_domain")]
+    pub custom_domain: Option<String>,
+    #[pyo3(get)]
+    #[arg(long, conflicts_with = "custom_domain")]
+    pub sub_domain: Option<String>,
 }

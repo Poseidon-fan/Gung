@@ -7,7 +7,6 @@ use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
 };
-use tracing::debug;
 
 use crate::proxy::{Gateway, Proxy, ProxyHandle};
 
@@ -26,13 +25,14 @@ impl Proxy for TcpProxy {
         Ok(Self {})
     }
 
-    async fn handle_one<T>(&self, mut req: Self::Request, mut channel: T)
+    async fn handle_one<T>(&self, mut req: Self::Request, mut channel: T) -> Result<()>
     where
         T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     {
-        debug!("start forwarding tcp");
-        let _ = io::copy_bidirectional(&mut req, &mut channel).await;
-        debug!("finish forwarding tcp");
+        io::copy_bidirectional(&mut req, &mut channel)
+            .await
+            .map(|_| ())
+            .map_err(anyhow::Error::from)
     }
 }
 
@@ -55,18 +55,24 @@ impl Gateway for TcpGateway {
         self.listener.accept().await.map_err(anyhow::Error::from)
     }
 
-    async fn dispatch(&self, stream: Self::RawStream) {
-        let _ = self
-            .proxy_handle
+    async fn dispatch(&self, stream: Self::RawStream) -> Result<()> {
+        self.proxy_handle
             .lock()
             .as_ref()
             .unwrap()
             .req_tx
-            .send(stream);
+            .send(stream)
+            .map_err(anyhow::Error::from)
     }
 
-    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, _config: &config::client::ProxyConfig) {
+    fn add_proxy(
+        &self,
+        handle: ProxyHandle<Self::Proxy>,
+        port: u16,
+        _config: &config::client::ProxyConfig,
+    ) -> Result<String> {
         *self.proxy_handle.lock() = Some(handle);
+        Ok(format!("{}:{}", self.listener.local_addr()?.ip(), port))
     }
 
     fn remove_proxy(&self, proxy_id: String) {

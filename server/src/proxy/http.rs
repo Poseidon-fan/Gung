@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use hyper::{Request, Response, body::Incoming, service::service_fn};
 use hyper_util::rt::TokioIo;
@@ -11,6 +11,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
 };
+use url::Url;
 
 use crate::proxy::{Gateway, Proxy, ProxyHandle};
 
@@ -21,7 +22,7 @@ struct HttpRouter {
     #[multi_index(hashed_unique)]
     proxy_id: String,
     #[multi_index(hashed_unique)]
-    host: String,
+    domain: String,
     handle: ProxyHandle<HttpProxy>,
 }
 
@@ -43,7 +44,7 @@ impl Proxy for HttpProxy {
         Ok(Self {})
     }
 
-    async fn handle_one<T>(&self, req: Self::Request, channel: T)
+    async fn handle_one<T>(&self, req: Self::Request, channel: T) -> Result<()>
     where
         T: AsyncRead + AsyncWrite + Send + Unpin + 'static,
     {
@@ -51,14 +52,15 @@ impl Proxy for HttpProxy {
         // let _host = req.req.uri().host().unwrap();
         let (mut sender, conn) = hyper::client::conn::http1::Builder::new()
             .handshake(io_stream)
-            .await
-            .unwrap();
+            .await?;
         tokio::spawn(conn);
         let resp = sender
             .send_request(req.req)
             .await
             .map_err(anyhow::Error::from);
-        let _ = req.resp_tx.send(resp);
+        req.resp_tx
+            .send(resp)
+            .map_err(|_| anyhow!("Failed to send response"))
     }
 }
 
@@ -81,46 +83,60 @@ impl Gateway for HttpGateway {
         self.listener.accept().await.map_err(anyhow::Error::from)
     }
 
-    async fn dispatch(&self, stream: Self::RawStream) {
+    async fn dispatch(&self, stream: Self::RawStream) -> Result<()> {
         let service = service_fn({
             let router = &self.router;
-            move |req: Request<Incoming>| {
+            async move |req: Request<Incoming>| {
                 let host = req
                     .headers()
                     .get("host")
-                    .unwrap()
+                    .ok_or(anyhow!("Host not found"))?
                     .to_str()
-                    .unwrap()
-                    .to_string();
-                println!("host: {}", host);
+                    .map(|s| {
+                        Url::parse(format!("http://{s}").as_str())
+                            .map(|url| url.host_str().unwrap().to_string())
+                    })??;
+
                 let req_tx = router
                     .read()
-                    .get_by_host("127.0.0.1")
-                    .map(|router| router.handle.req_tx.clone());
-                async move {
-                    if let Some(req_tx) = req_tx {
-                        let (resp_tx, resp_rx) = oneshot::channel();
-                        let http_req = HttpRequest { req, resp_tx };
-                        let _ = req_tx.send(http_req);
-                        resp_rx.await.unwrap()
-                    } else {
-                        todo!()
-                    }
-                }
+                    .get_by_domain(&host)
+                    .map(|router| router.handle.req_tx.clone())
+                    .ok_or(anyhow!("Proxy not found"))?;
+
+                let (resp_tx, resp_rx) = oneshot::channel();
+                let http_req = HttpRequest { req, resp_tx };
+                req_tx.send(http_req)?;
+                resp_rx.await?
             }
         });
         let io_stream = TokioIo::new(stream);
-        let _ = hyper::server::conn::http1::Builder::new()
+        hyper::server::conn::http1::Builder::new()
             .serve_connection(io_stream, service)
-            .await;
+            .await
+            .map_err(anyhow::Error::from)
     }
 
-    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, _config: &config::client::ProxyConfig) {
+    fn add_proxy(
+        &self,
+        handle: ProxyHandle<Self::Proxy>,
+        port: u16,
+        config: &config::client::ProxyConfig,
+    ) -> Result<String> {
+        let domain = match (
+            &config.proxy_params.custom_domain,
+            &config.proxy_params.sub_domain,
+        ) {
+            (Some(custom_domain), None) => custom_domain.clone(),
+            (None, Some(_sub_domain)) => todo!(),
+            (None, None) => todo!(),
+            _ => unreachable!(),
+        };
         self.router.write().insert(HttpRouter {
             proxy_id: handle.proxy_id.clone(),
-            host: "127.0.0.1".to_string(),
+            domain: domain.clone(),
             handle,
         });
+        Ok(format!("http://{domain}:{port}"))
     }
 
     fn remove_proxy(&self, proxy_id: String) {

@@ -10,4 +10,6 @@ pub struct ProxyConfig {
 pub struct TcpProxyConfig {}
 
 #[derive(Debug, Deserialize)]
-pub struct HttpProxyConfig {}
+pub struct HttpProxyConfig {
+    _base_domain: String,
+}

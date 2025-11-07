@@ -29,6 +29,7 @@ hyper = { workspace = true }
 http-body-util = { workspace = true }
 hyper-util = { workspace = true }
 multi_index_map = { workspace = true }
+url = { workspace = true }
 transport = { path = "../components/transport" }
 config = { path = "../components/config" }
 auth = { path = "../components/auth" }
