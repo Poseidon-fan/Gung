@@ -27,7 +27,7 @@ directories-next = "2"
 rcgen = "0.14"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
-net-mux = { git = "https://github.com/Poseidon-fan/net-mux" }
+net-mux = "0.2.1"
 rustls-native-certs = "0.8.1"
 rand_set = "0.1.2"
 parking_lot = "0.12.5"

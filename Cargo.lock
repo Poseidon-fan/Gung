@@ -912,8 +912,9 @@ dependencies = [
 
 [[package]]
 name = "net-mux"
-version = "0.2.0"
-source = "git+https://github.com/Poseidon-fan/net-mux#017aea13f1c80f6fc34f1c9d94b3c55a40ad61da"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d25b9d40228d2c68e107d96b9580f02a8b3d743e7ca598f88784ab57652a6bfc"
 dependencies = [
  "bitflags",
  "futures-util",
