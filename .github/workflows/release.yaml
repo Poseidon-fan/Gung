@@ -11,6 +11,8 @@ env:
 
 jobs:
   release:
+    permissions:
+      contents: write
     name: Build for ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
