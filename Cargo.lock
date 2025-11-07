@@ -494,21 +494,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gung"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "atty",
- "clap",
- "client",
- "config",
- "server",
- "toml",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "h2"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
