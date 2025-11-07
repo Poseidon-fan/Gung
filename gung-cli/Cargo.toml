@@ -1,9 +1,14 @@
 [package]
 name = "gung"
 version.workspace = true
-edition.workspace = true
 authors.workspace = true
+edition.workspace = true
 license.workspace = true
+description = "An embedded Intranet penetration tool, supports multiple protocols and Python script plugins."
+readme = "README.md"
+repository = "https://github.com/Poseidon-fan/Gung"
+keywords = ["proxy", "nat-traversal", "tunnel", "python-plugin"]
+categories = ["network-programming", "asynchronous", "command-line-utilities"]
 
 [dependencies]
 anyhow = { workspace = true }
