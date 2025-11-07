@@ -6,6 +6,7 @@ use hyper::{Request, Response, body::Incoming, service::service_fn};
 use hyper_util::rt::TokioIo;
 use multi_index_map::MultiIndexMap;
 use parking_lot::RwLock;
+use rand::RngCore;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
@@ -129,7 +130,18 @@ impl Gateway for HttpGateway {
         ) {
             (Some(custom_domain), None) => custom_domain.clone(),
             (None, Some(sub_domain)) => format!("{}.{}", sub_domain, self.base_domain),
-            (None, None) => todo!(),
+            (None, None) => {
+                const LENGTH: usize = 7;
+                let mut sub = vec![0u8; LENGTH];
+                rand::rng().fill_bytes(&mut sub);
+                let sub: String =
+                    base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &sub)
+                        .to_lowercase()
+                        .chars()
+                        .take(LENGTH)
+                        .collect();
+                format!("{}.{}", sub, self.base_domain)
+            }
             _ => unreachable!(),
         };
         self.router.write().insert(HttpRouter {

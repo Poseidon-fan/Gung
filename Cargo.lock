@@ -118,6 +118,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "base32"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "022dfe9eb35f19ebbcb51e0b40a5ab759f46ad60cadf7297e0bd085afb50e076"
+
+[[package]]
 name = "base64"
 version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1532,6 +1538,7 @@ dependencies = [
  "async-trait",
  "atty",
  "auth",
+ "base32",
  "clap",
  "config",
  "directories-next",
@@ -1544,6 +1551,7 @@ dependencies = [
  "plugin",
  "protocol",
  "pyo3",
+ "rand",
  "rand_set",
  "rcgen",
  "rustls",
