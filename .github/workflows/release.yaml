@@ -34,24 +34,6 @@ jobs:
           - os: ubuntu-latest
             target: armv7-unknown-linux-musleabihf
             cross: true
-          - os: ubuntu-latest
-            target: mips-unknown-linux-gnu
-            cross: true
-          - os: ubuntu-latest
-            target: mips-unknown-linux-musl
-            cross: true
-          - os: ubuntu-latest
-            target: mipsel-unknown-linux-gnu
-            cross: true
-          - os: ubuntu-latest
-            target: mipsel-unknown-linux-musl
-            cross: true
-          - os: ubuntu-latest
-            target: mips64-unknown-linux-gnuabi64
-            cross: true
-          - os: ubuntu-latest
-            target: mips64el-unknown-linux-gnuabi64
-            cross: true
           - os: macos-latest
             target: x86_64-apple-darwin
             cross: false
@@ -88,7 +70,7 @@ jobs:
 
       - name: Run UPX
         continue-on-error: true
-        if: matrix.os == 'ubuntu-latest' && !contains(matrix.target, 'mips')
+        if: matrix.os == 'ubuntu-latest'
         uses: crazy-max/ghaction-upx@v1
         with:
           version: v4.0.2
