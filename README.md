@@ -45,3 +45,12 @@ $ gungc <local_addr> \
     -t tcp \
     -p http
 ```
+
+## Planning
+
+> This project is currently under active development. Feel free to star, fork, and submit PRs to help improve this project. 😊
+
+- [ ] Support network traffic hijacking analysis. Integrate Lua and RPC plugin.
+- [ ] More transport and proxy protocols.
+- [ ] Http API and web ui for both server management and client analysis.
+- [ ] Improve relevant documents
