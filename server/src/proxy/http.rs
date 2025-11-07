@@ -4,7 +4,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use hyper::{Request, Response, body::Incoming, service::service_fn};
 use hyper_util::rt::TokioIo;
-use parking_lot::Mutex;
+use multi_index_map::MultiIndexMap;
+use parking_lot::RwLock;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
@@ -15,9 +16,18 @@ use crate::proxy::{Gateway, Proxy, ProxyHandle};
 
 pub struct HttpProxy {}
 
+#[derive(MultiIndexMap)]
+struct HttpRouter {
+    #[multi_index(hashed_unique)]
+    proxy_id: String,
+    #[multi_index(hashed_unique)]
+    host: String,
+    handle: ProxyHandle<HttpProxy>,
+}
+
 pub struct HttpGateway {
     listener: TcpListener,
-    proxy_handle: Mutex<Option<ProxyHandle<HttpProxy>>>,
+    router: RwLock<MultiIndexHttpRouterMap>,
 }
 
 pub struct HttpRequest {
@@ -63,7 +73,7 @@ impl Gateway for HttpGateway {
             .map_err(anyhow::Error::from)
             .map(|listener| Self {
                 listener,
-                proxy_handle: Mutex::new(None),
+                router: RwLock::new(MultiIndexHttpRouterMap::default()),
             })
     }
 
@@ -72,35 +82,52 @@ impl Gateway for HttpGateway {
     }
 
     async fn dispatch(&self, stream: Self::RawStream) {
-        let io_stream = TokioIo::new(stream);
-        let req_tx = self.proxy_handle.lock().as_ref().unwrap().req_tx.clone();
-        let service = service_fn(move |req: Request<Incoming>| {
-            let req_tx = req_tx.clone();
-            async move {
-                let (resp_tx, resp_rx) = oneshot::channel();
-                let http_req = HttpRequest { req, resp_tx };
-                let _ = req_tx.send(http_req);
-                resp_rx.await.unwrap()
+        let service = service_fn({
+            let router = &self.router;
+            move |req: Request<Incoming>| {
+                let host = req
+                    .headers()
+                    .get("host")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                println!("host: {}", host);
+                let req_tx = router
+                    .read()
+                    .get_by_host("127.0.0.1")
+                    .map(|router| router.handle.req_tx.clone());
+                async move {
+                    if let Some(req_tx) = req_tx {
+                        let (resp_tx, resp_rx) = oneshot::channel();
+                        let http_req = HttpRequest { req, resp_tx };
+                        let _ = req_tx.send(http_req);
+                        resp_rx.await.unwrap()
+                    } else {
+                        todo!()
+                    }
+                }
             }
         });
+        let io_stream = TokioIo::new(stream);
         let _ = hyper::server::conn::http1::Builder::new()
             .serve_connection(io_stream, service)
             .await;
     }
 
     fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, _config: &config::client::ProxyConfig) {
-        *self.proxy_handle.lock() = Some(handle);
+        self.router.write().insert(HttpRouter {
+            proxy_id: handle.proxy_id.clone(),
+            host: "127.0.0.1".to_string(),
+            handle,
+        });
     }
 
     fn remove_proxy(&self, proxy_id: String) {
-        let handle = self.proxy_handle.lock().take();
-        if let Some(handle) = handle {
-            debug_assert_eq!(handle.proxy_id, proxy_id);
-            let _ = handle.server_shutdown_tx.send(());
-        }
+        self.router.write().remove_by_proxy_id(&proxy_id);
     }
 
     fn is_empty(&self) -> bool {
-        self.proxy_handle.lock().is_none()
+        self.router.read().is_empty()
     }
 }
