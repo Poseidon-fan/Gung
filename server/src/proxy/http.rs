@@ -88,7 +88,7 @@ impl Gateway for HttpGateway {
             .await;
     }
 
-    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>) {
+    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, _config: &config::client::ProxyConfig) {
         *self.proxy_handle.lock() = Some(handle);
     }
 

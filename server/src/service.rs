@@ -107,6 +107,7 @@ async fn handle_connection<T: Transport + 'static>(
         }
     };
 
+    let port = port::alloc(context.proxy.proxy_params.remote_port)?;
     match context.proxy.proxy_type {
         config::client::ProxyType::Tcp => {
             let proxy = TcpProxy::from_client_config(&context.proxy)?;
@@ -115,14 +116,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .tcp_mgr
                 .as_ref()
                 .ok_or(anyhow!("TCP manager not supported"))?
-                .register(
-                    proxy,
-                    context.auth_id.clone(),
-                    context.server_ip,
-                    keepalive,
-                    port::alloc(context.proxy.proxy_params.remote_port)?,
-                    conn,
-                )
+                .register(proxy, context, keepalive, port, conn)
                 .await?;
         }
         config::client::ProxyType::Http => {
@@ -132,14 +126,7 @@ async fn handle_connection<T: Transport + 'static>(
                 .http_mgr
                 .as_ref()
                 .ok_or(anyhow!("HTTP manager not supported"))?
-                .register(
-                    proxy,
-                    context.auth_id.clone(),
-                    context.server_ip,
-                    keepalive,
-                    port::alloc(context.proxy.proxy_params.remote_port)?,
-                    conn,
-                )
+                .register(proxy, context, keepalive, port, conn)
                 .await?;
         }
     };

@@ -3,13 +3,14 @@ pub mod tcp;
 
 use std::{
     collections::HashMap,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{Ipv4Addr, SocketAddr},
     sync::Arc,
     time::Duration,
 };
 
 use anyhow::Result;
 use async_trait::async_trait;
+use auth::AuthContext;
 use config::server::KeepaliveConfig;
 use futures_util::{SinkExt, StreamExt};
 use protocol::cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
@@ -167,7 +168,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
         }
     }
 
-    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>);
+    fn add_proxy(&self, handle: ProxyHandle<Self::Proxy>, config: &config::client::ProxyConfig);
 
     fn remove_proxy(&self, proxy_id: String);
 
@@ -208,13 +209,13 @@ impl<T: Gateway> GatewayManager<T> {
     pub async fn register<K: LogicConnection + 'static>(
         &self,
         proxy: T::Proxy,
-        proxy_id: String,
-        server_ip: IpAddr,
+        auth_ctx: AuthContext,
         keepalive: KeepaliveConfig,
         port: Port,
         conn: K,
     ) -> Result<()> {
         let port_u16 = port.0;
+        let proxy_id = auth_ctx.auth_id.clone();
         let (req_tx, req_rx) = mpsc::unbounded_channel();
         let (server_shutdown_tx, server_shutdown_rx) = oneshot::channel();
         let pxy_handle: ProxyHandle<T::Proxy> = ProxyHandle {
@@ -228,7 +229,7 @@ impl<T: Gateway> GatewayManager<T> {
                 Some(handle) => {
                     let gtw = Arc::clone(&handle.gtw);
                     let tx = handle.client_shutdown_tx.clone();
-                    gtw.add_proxy(pxy_handle);
+                    gtw.add_proxy(pxy_handle, &auth_ctx.proxy);
                     tx
                 }
                 None => {
@@ -244,7 +245,7 @@ impl<T: Gateway> GatewayManager<T> {
                             client_shutdown_tx: client_shutdown_tx.clone(),
                         },
                     );
-                    gtw.add_proxy(pxy_handle);
+                    gtw.add_proxy(pxy_handle, &auth_ctx.proxy);
                     let gateway_shutdown_tx = self.gateway_shutdown_tx.clone();
                     tokio::spawn(async move {
                         gtw.run(port_u16, client_shutdown_rx, gateway_shutdown_tx)
@@ -257,7 +258,7 @@ impl<T: Gateway> GatewayManager<T> {
         tokio::spawn(async move {
             let params = ProxyStartupParams {
                 proxy_id: proxy_id.clone(),
-                server_addr: SocketAddr::from((server_ip, port_u16)),
+                server_addr: SocketAddr::from((auth_ctx.server_ip, port_u16)),
                 keepalive,
                 req_rx,
                 conn,
