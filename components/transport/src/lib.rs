@@ -10,6 +10,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tokio::io::{AsyncRead, AsyncWrite};
 
+// The abstraction of the transport layer.
 #[async_trait]
 pub trait Transport: Send + Sync {
     type Listener: Send + Sync;
@@ -51,6 +52,8 @@ pub trait Transport: Send + Sync {
     async fn abolish(&self, raw_conn: Self::RawConnection);
 }
 
+// The `LogicConnection` stands for a eeliable multiplexed long connection,
+// it could be multiplexed into many `Stream`s that implement the `AsyncRead` and `AsyncWrite` traits.
 #[async_trait]
 pub trait LogicConnection: Send + Sync {
     type Stream: Send + Sync + AsyncRead + AsyncWrite + Unpin + 'static;

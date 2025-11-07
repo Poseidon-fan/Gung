@@ -4,6 +4,7 @@ use anyhow::{Result, bail};
 use parking_lot::Mutex;
 use rand_set::RandSet;
 
+// Wrap the port number in a struct to implement the Drop trait to manage port recycling automatically by RAII.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Port(pub u16);
 
@@ -24,6 +25,9 @@ impl Drop for Port {
         PORT_MANAGER.lock().dealloc(self.0);
     }
 }
+
+static PORT_MANAGER: LazyLock<Mutex<PortManager>> =
+    LazyLock::new(|| Mutex::new(PortManager::default()));
 
 pub struct PortManager {
     free_ports: RandSet<u16>,
@@ -67,6 +71,3 @@ impl PortManager {
         self.free_ports.insert(port);
     }
 }
-
-static PORT_MANAGER: LazyLock<Mutex<PortManager>> =
-    LazyLock::new(|| Mutex::new(PortManager::default()));

@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use auth::AuthContext;
 use config::server::{KeepaliveConfig, RunConfig};
 use futures_util::{SinkExt, StreamExt};
-use protocol::cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
+use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use tokio::{
     io::{self, AsyncRead, AsyncWrite},
     select,
@@ -21,7 +21,7 @@ use tokio::{
     time,
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, error, info, instrument, warn};
 use transport::LogicConnection;
 
 use crate::{
@@ -29,12 +29,14 @@ use crate::{
     proxy::{http::HttpGateway, tcp::TcpGateway},
 };
 
+// The upper abstraction of the proxy.
 #[async_trait]
 pub trait Proxy: 'static + Sized + Sync + Send {
     type Request: Send;
 
     fn from_client_config(config: &config::client::ProxyConfig) -> Result<Self>;
 
+    // Handle one `Request`
     async fn handle_one<T>(&self, req: Self::Request, channel: T) -> Result<()>
     where
         T: AsyncRead + AsyncWrite + Send + Unpin + 'static;
@@ -49,10 +51,13 @@ pub trait Proxy: 'static + Sized + Sync + Send {
         let (client_cmd_reader, server_cmd_writer) = io::split(ctl_channel);
         let mut client_cmd_reader = FramedRead::new(client_cmd_reader, ClientCommandCodec);
         let mut server_cmd_writer = FramedWrite::new(server_cmd_writer, ServerCommandCodec);
+
+        // Notify the client that the forwarding has started, pass the proxy address to the client.
         server_cmd_writer
             .send(ServerCommand::ForwardingStarted(params.pxy_addr))
             .await?;
 
+        // Keepalive ticker, detect if the client is still alive periodically.
         let mut ping_ticker =
             time::interval(Duration::from_secs(params.keepalive.keepalive_interval));
 
@@ -60,6 +65,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
 
         loop {
             select! {
+                // Receive a request from the `Gateway`, get a data channel and forward the request to the client.
                 Some(req) = params.req_rx.recv() => {
                     let this = Arc::clone(&proxy);
                     let data_channel = params.conn.open().await?;
@@ -71,6 +77,7 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     });
                 }
 
+                // Receive a command from the client.
                 client_cmd = client_cmd_reader.next() => {
                     match client_cmd {
                         None | Some(Err(_)) => {
@@ -91,17 +98,20 @@ pub trait Proxy: 'static + Sized + Sync + Send {
                     }
                 }
 
+                // Keepalive ping.
                 _ = ping_ticker.tick() => {
                     debug!("Ping");
                     server_cmd_writer.send(ServerCommand::Ping).await?;
                 }
 
+                // Server shutdown the proxy proactively.
                 _ = &mut params.server_shutdown_rx => {
                     info!("Server side shutdown");
                     let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
                     return Ok(());
                 }
 
+                // Keepalive timeout, the client is not even responding to the ping.
                 _ = time::sleep(Duration::from_secs(params.keepalive.keepalive_timeout)) => {
                     info!("Ping timeout");
                     let _ = params.client_shutdown_tx.send(params.proxy_id.clone());
@@ -124,10 +134,12 @@ struct ProxyStartupParams<P: Proxy, T: LogicConnection> {
 
 pub struct ProxyHandle<T: Proxy> {
     proxy_id: String,
+    // The channel to dispatch the `Request` to the `Proxy`.
     req_tx: mpsc::UnboundedSender<T::Request>,
     server_shutdown_tx: oneshot::Sender<()>,
 }
 
+// Gateway is responsible for managing the proxies as well as receiving the raw stream and dispatching it to the `Proxy`.
 #[async_trait]
 pub trait Gateway: 'static + Sized + Send + Sync {
     type RawStream: Send;
@@ -147,6 +159,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
     ) {
         loop {
             select! {
+                // Accept a new remote connection.
                 acc = self.accept() => {
                     match acc {
                         Ok((raw_stream, _)) => {
@@ -158,13 +171,15 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                             });
                         },
                         Err(_) => {
-                            todo!()
+                            error!("Failed to accept connection");
                         }
                     }
                 },
+                // Receive a shutdown signal from the background task.
                 Some(proxy_id) = client_shutdown_rx.recv() => {
                     self.remove_proxy(proxy_id);
                     if self.is_empty() {
+                        // Release the port if there's no proxy left.
                         let _ = gateway_shutdown_tx.send(port);
                     }
                 }
@@ -185,8 +200,9 @@ pub trait Gateway: 'static + Sized + Send + Sync {
 }
 
 struct GatewayHandle<T> {
-    gtw: Arc<T>,
+    // Contain the `Port`'s ownership, so that the port will be freed automatically when the gateway is closed.
     _port: Port,
+    gtw: Arc<T>,
     client_shutdown_tx: mpsc::UnboundedSender<String>,
 }
 
@@ -215,6 +231,7 @@ impl<T: Gateway> GatewayManager<T> {
         }
     }
 
+    // Register a proxy to the gateway manager. If there's no gateway listening on the port, a new gateway will be created.
     pub async fn register<K: LogicConnection + 'static>(
         &self,
         proxy: T::Proxy,
@@ -235,12 +252,14 @@ impl<T: Gateway> GatewayManager<T> {
         let (pxy_addr, client_shutdown_tx) = {
             let mut gateways = self.gateways.lock().await;
             match gateways.get(&port_u16) {
+                // There's already a gateway listening on the port. just add the proxy to the gateway.
                 Some(handle) => {
                     let gtw = Arc::clone(&handle.gtw);
                     let tx = handle.client_shutdown_tx.clone();
                     let pxy_addr = gtw.add_proxy(pxy_handle, port_u16, &auth_ctx.proxy)?;
                     (pxy_addr, tx)
                 }
+                // There's no gateway listening on the port. start a new one.
                 None => {
                     let gtw = Arc::new(
                         T::bind(
@@ -269,6 +288,8 @@ impl<T: Gateway> GatewayManager<T> {
                 }
             }
         };
+
+        // Start a background task to handle the proxy.
         tokio::spawn(async move {
             let params = ProxyStartupParams {
                 proxy_id: proxy_id.clone(),
@@ -279,20 +300,22 @@ impl<T: Gateway> GatewayManager<T> {
                 client_shutdown_tx,
                 server_shutdown_rx,
             };
-            // TODO(Poseidon): handle error here
-            let _ = proxy.run(params).await;
+            if let Err(e) = proxy.run(params).await {
+                warn!("Error running proxy: {e}");
+            }
         });
 
         Ok(())
     }
 }
 
+// A background task to collect the gateway shutdown signal.
 async fn collect_gateway_shutdown<T: Gateway>(
     gateways: Arc<Mutex<HashMap<u16, GatewayHandle<T>>>>,
     mut gateway_shutdown_rx: mpsc::UnboundedReceiver<u16>,
 ) {
     while let Some(port) = gateway_shutdown_rx.recv().await {
-        println!("removed {port}");
+        debug!("Removed gateway on port {port}");
         gateways.lock().await.remove(&port);
     }
 }

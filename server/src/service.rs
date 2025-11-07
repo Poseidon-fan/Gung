@@ -6,9 +6,9 @@ use std::{
 use anyhow::{Context, Result, anyhow, bail};
 
 use auth::{AuthContext, AuthReqCodec, AuthResp, AuthRespCodec, Authenticator};
+use auth::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
-use protocol::constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use semver::Version;
 use tokio::io;
 use tokio_util::codec::{FramedRead, FramedWrite};
@@ -107,7 +107,9 @@ async fn handle_connection<T: Transport + 'static>(
         }
     };
 
+    // Allocate a port for the proxy, the port will be freed automatically when the proxy is closed.
     let port = port::alloc(context.proxy.proxy_params.remote_port)?;
+
     match context.proxy.proxy_type {
         config::client::ProxyType::Tcp => {
             let proxy = TcpProxy::from_client_config(&context.proxy)?;

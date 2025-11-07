@@ -14,6 +14,7 @@ pub struct TcpProxy {}
 
 pub struct TcpGateway {
     listener: TcpListener,
+    // One Tcp Gateway can only handle one proxy.
     proxy_handle: Mutex<Option<ProxyHandle<TcpProxy>>>,
 }
 

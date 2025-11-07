@@ -21,6 +21,7 @@ pub fn init(config: &PythonPluginConfig) -> Result<()> {
         ));
     }
 
+    // Import the Python plugin package to the Python interpreter.
     Python::attach(|py| -> PyResult<()> {
         let syspath = py.import("sys")?.getattr("path")?.cast_into::<PyList>()?;
         syspath.insert(0, pkg_path.to_str())?;

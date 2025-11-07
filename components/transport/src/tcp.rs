@@ -83,7 +83,7 @@ impl Transport for TcpTransport {
     }
 
     async fn abolish(&self, mut raw_conn: Self::RawConnection) {
-        _ = raw_conn.shutdown().await;
+        let _ = raw_conn.shutdown().await;
     }
 }
 

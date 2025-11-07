@@ -36,6 +36,8 @@ pub struct QuicStream {
 
 pub struct QuicRawConnection {
     conn: quinn::Connection,
+    // Unlike `TcpStream` witch natively supports AsyncRead and AsyncWrite,
+    // here use a quic stream to communicate before established logically.
     stream: QuicStream,
 }
 
@@ -151,7 +153,7 @@ impl Transport for QuicTransport {
             .to_string();
 
         let mut roots = RootCertStore::empty();
-        for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs")
+        for cert in rustls_native_certs::load_native_certs().expect("Could not load platform certs")
         {
             roots.add(cert).unwrap();
         }

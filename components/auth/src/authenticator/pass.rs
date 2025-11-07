@@ -6,12 +6,13 @@ use crate::{
     msg::{AuthContext, AuthResp},
 };
 
+// The authenticator that always accepts the authentication, only for test purpose.
 #[derive(Default)]
-pub struct PassAuthenticator();
+pub struct PassAuthenticator;
 
 impl PassAuthenticator {
     pub fn new() -> Self {
-        Self()
+        Self
     }
 }
 

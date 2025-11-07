@@ -5,6 +5,8 @@ use pyo3::{prelude::*, types::PyFunction};
 
 use crate::{AuthContext, AuthResp, Authenticator};
 
+// The authenticator that uses a Python plugin to authenticate the client.
+// It will call the `authenticate` function in the Python file.
 pub struct PyPluginAuthenticator {
     pub auth_func: Py<PyFunction>,
 }

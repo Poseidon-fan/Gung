@@ -18,6 +18,8 @@ use crate::proxy::{Gateway, Proxy, ProxyHandle};
 
 pub struct HttpProxy {}
 
+// Use both `proxy_id` and `domain` to identify the proxy.
+// `domain` is used to route the request to the correct proxy.
 #[derive(MultiIndexMap)]
 struct HttpRouter {
     #[multi_index(hashed_unique)]
@@ -34,7 +36,9 @@ pub struct HttpGateway {
 }
 
 pub struct HttpRequest {
+    // The request from remote.
     req: Request<Incoming>,
+    // A hook channel to notify the forwarding response to the remote.
     resp_tx: oneshot::Sender<Result<Response<Incoming>>>,
 }
 
@@ -89,6 +93,8 @@ impl Gateway for HttpGateway {
         let service = service_fn({
             let router = &self.router;
             async move |req: Request<Incoming>| {
+                // Dispatch the request based on the `host` header.
+                // TODO(Poseidon): fuzzy matching
                 let host = req
                     .headers()
                     .get("host")
@@ -108,6 +114,8 @@ impl Gateway for HttpGateway {
                 let (resp_tx, resp_rx) = oneshot::channel();
                 let http_req = HttpRequest { req, resp_tx };
                 req_tx.send(http_req)?;
+
+                // Wait for proxy callback.
                 resp_rx.await?
             }
         });

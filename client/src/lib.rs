@@ -5,16 +5,13 @@ use std::{io::Write, time::Duration};
 
 use auth::{
     AuthAcceptResp, AuthChallengeResp, AuthRejectResp, AuthReq, AuthReqCodec, AuthResp,
-    AuthRespCodec,
+    AuthRespCodec, PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD,
 };
 use config::client::{CliConfig, TransportType};
 
 use anyhow::{Context, Result, bail};
 use futures_util::{SinkExt, StreamExt};
-use protocol::{
-    cmd::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec},
-    constant::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD},
-};
+use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use serde_json::{Map, Value as JsonValue};
 use tokio::{
     io::{self, AsyncBufReadExt, BufReader},
