@@ -11,5 +11,5 @@ pub struct TcpProxyConfig {}
 
 #[derive(Debug, Deserialize)]
 pub struct HttpProxyConfig {
-    _base_domain: String,
+    pub base_domain: String,
 }

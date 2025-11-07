@@ -29,6 +29,7 @@ struct HttpRouter {
 pub struct HttpGateway {
     listener: TcpListener,
     router: RwLock<MultiIndexHttpRouterMap>,
+    base_domain: String,
 }
 
 pub struct HttpRequest {
@@ -69,13 +70,14 @@ impl Gateway for HttpGateway {
     type RawStream = TcpStream;
     type Proxy = HttpProxy;
 
-    async fn bind(addr: SocketAddr) -> Result<Self> {
+    async fn bind(addr: SocketAddr, pxy_config: &config::server::ProxyConfig) -> Result<Self> {
         TcpListener::bind(addr)
             .await
             .map_err(anyhow::Error::from)
             .map(|listener| Self {
                 listener,
                 router: RwLock::new(MultiIndexHttpRouterMap::default()),
+                base_domain: pxy_config.http.as_ref().unwrap().base_domain.clone(),
             })
     }
 
@@ -127,7 +129,7 @@ impl Gateway for HttpGateway {
             &config.proxy_params.sub_domain,
         ) {
             (Some(custom_domain), None) => custom_domain.clone(),
-            (None, Some(_sub_domain)) => todo!(),
+            (None, Some(sub_domain)) => format!("{}.{}", sub_domain, self.base_domain),
             (None, None) => todo!(),
             _ => unreachable!(),
         };

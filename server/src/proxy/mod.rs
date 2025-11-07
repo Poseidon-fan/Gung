@@ -133,7 +133,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
     type RawStream: Send;
     type Proxy: Proxy;
 
-    async fn bind(addr: SocketAddr) -> Result<Self>;
+    async fn bind(addr: SocketAddr, pxy_config: &config::server::ProxyConfig) -> Result<Self>;
 
     async fn accept(&self) -> Result<(Self::RawStream, SocketAddr)>;
 
@@ -242,8 +242,13 @@ impl<T: Gateway> GatewayManager<T> {
                     (pxy_addr, tx)
                 }
                 None => {
-                    let gtw =
-                        Arc::new(T::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0))).await?);
+                    let gtw = Arc::new(
+                        T::bind(
+                            SocketAddr::from((Ipv4Addr::UNSPECIFIED, port.0)),
+                            &config.proxy,
+                        )
+                        .await?,
+                    );
                     let (client_shutdown_tx, client_shutdown_rx) = mpsc::unbounded_channel();
 
                     gateways.insert(

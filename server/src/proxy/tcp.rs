@@ -41,7 +41,7 @@ impl Gateway for TcpGateway {
     type RawStream = TcpStream;
     type Proxy = TcpProxy;
 
-    async fn bind(addr: SocketAddr) -> Result<Self> {
+    async fn bind(addr: SocketAddr, _pxy_config: &config::server::ProxyConfig) -> Result<Self> {
         TcpListener::bind(addr)
             .await
             .map_err(anyhow::Error::from)
