@@ -1,7 +1,5 @@
 [transport]
-type = "quic"
-tls_cert = "./.cert/cert.pem"
-tls_key = "./.cert/key.pem"
+type = "tcp"
 
 [auth]
 type = "pass"

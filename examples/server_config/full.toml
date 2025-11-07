@@ -1,0 +1,16 @@
+[transport]
+type = "quic"
+tls_cert = "./.cert/cert.pem"
+tls_key = "./.cert/key.pem"
+
+[auth]
+type = "py_plugin"
+file_path = "auth.py"
+
+[proxy.tcp]
+
+[proxy.http]
+base_domain = "localhost"
+
+[plugin.python]
+base_pkg_path = "/workspaces/Gung/examples/plugin/python"
