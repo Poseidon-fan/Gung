@@ -21,7 +21,7 @@ jobs:
             cross: false
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            cross: false
+            cross: true
           - os: ubuntu-latest
             target: aarch64-unknown-linux-musl
             cross: true
