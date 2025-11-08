@@ -24,6 +24,7 @@ jobs:
           toolchain: stable
           profile: minimal
           components: clippy, rustfmt
+
       - uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt -- --check
@@ -43,6 +44,11 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - uses: Swatinem/rust-cache@v2
       - name: Build
         run: cargo build
