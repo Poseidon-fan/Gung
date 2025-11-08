@@ -78,6 +78,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: target/${{ matrix.target }}/release/gung-tools-${{ matrix.target }}.zip
+          files: target/${{ matrix.target }}/release/gung-${{ matrix.target }}.zip
           generate_release_notes: true
           draft: true
