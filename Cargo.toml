@@ -16,7 +16,11 @@ serde_json = "1.0.145"
 toml = "0.9.8"
 anyhow = "1.0"
 tokio = { version = "1", features = ["full"] }
-pyo3 = { version = "0.26.0", features = ["auto-initialize", "serde", "abi3"] }
+pyo3 = { version = "0.26.0", features = [
+    "auto-initialize",
+    "serde",
+    "abi3-py311",
+] }
 pythonize = "0.26.0"
 async-trait = "0.1.89"
 semver = "1.0.27"
