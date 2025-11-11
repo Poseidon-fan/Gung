@@ -18,15 +18,12 @@ jobs:
     strategy:
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: x86_64-apple-darwin
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
+        platform:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
+          - { os: macos-latest, target: x86_64-apple-darwin }
+          - { os: macos-latest, target: aarch64-apple-darwin }
+          - { os: windows-latest, target: x86_64-pc-windows-msvc }
+
 
     steps:
       - uses: actions/checkout@v5
@@ -45,42 +42,42 @@ jobs:
 
       # Build
       - name: Install target
-        run: rustup target add ${{ matrix.target }}
+        run: rustup target add ${{ matrix.platform.target }}
       - name: Build release
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.platform.target }}
 
       - name: Run UPX
         continue-on-error: true
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.platform.os == 'ubuntu-latest'
         uses: crazy-max/ghaction-upx@v1
         with:
           version: v4.0.2
           files: |
-            target/${{ matrix.target }}/release/gungs${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            target/${{ matrix.target }}/release/gungc${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            target/${{ matrix.platform.target }}/release/gungs${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
+            target/${{ matrix.platform.target }}/release/gungc${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
           args: -q --best --lzma
 
       - uses: actions/upload-artifact@v4
         with:
-          name: gung-${{ matrix.target }}-python-${{ matrix.python }}
+          name: gung-${{ matrix.platform.target }}-python-${{ matrix.python }}
           path: |
-            target/${{ matrix.target }}/release/gungs${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            target/${{ matrix.platform.target }}/release/gungs${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
             target/${{ matrix.target }}/release/gungc${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
       - name: Zip Release
         uses: TheDoctor0/zip-release@0.6.1
         with:
           type: zip
-          filename: gung-${{ matrix.target }}-python-${{ matrix.python }}.zip
-          directory: target/${{ matrix.target }}/release/
+          filename: gung-${{ matrix.platform.target }}-python-${{ matrix.python }}.zip
+          directory: target/${{ matrix.platform.target }}/release/
           path: |
-            gungs${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-            gungc${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+            gungs${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
+            gungc${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
 
       - name: Publish
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: target/${{ matrix.target }}/release/${{ matrix.target }}/gung-py-${{ matrix.python }}.zip
+          files: target/${{ matrix.platform.target }}/release/${{ matrix.platform.target }}/gung-py-${{ matrix.python }}.zip
           generate_release_notes: true
           draft: true
