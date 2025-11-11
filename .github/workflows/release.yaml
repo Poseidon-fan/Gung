@@ -17,6 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
@@ -36,9 +37,11 @@ jobs:
           default: true
 
       # Setup Python environment
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        if: matrix.python != 'none'
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python }}
 
       # Build
       - name: Install target
@@ -59,7 +62,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: gung-tools-${{ matrix.target }}
+          name: gung-${{ matrix.target }}-python-${{ matrix.python }}
           path: |
             target/${{ matrix.target }}/release/gungs${{ matrix.os == 'windows-latest' && '.exe' || '' }}
             target/${{ matrix.target }}/release/gungc${{ matrix.os == 'windows-latest' && '.exe' || '' }}
@@ -68,7 +71,7 @@ jobs:
         uses: TheDoctor0/zip-release@0.6.1
         with:
           type: zip
-          filename: gung-tools-${{ matrix.target }}.zip
+          filename: gung-${{ matrix.target }}-python-${{ matrix.python }}.zip
           directory: target/${{ matrix.target }}/release/
           path: |
             gungs${{ matrix.os == 'windows-latest' && '.exe' || '' }}
@@ -78,6 +81,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: target/${{ matrix.target }}/release/gung-${{ matrix.target }}.zip
+          files: target/${{ matrix.target }}/release/${{ matrix.target }}/gung-py-${{ matrix.python }}.zip
           generate_release_notes: true
           draft: true
