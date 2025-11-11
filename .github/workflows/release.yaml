@@ -39,7 +39,7 @@ jobs:
       # Setup Python environment
       - name: Setup Python
         if: matrix.python != 'none'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
 
