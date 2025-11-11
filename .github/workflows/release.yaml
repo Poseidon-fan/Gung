@@ -65,7 +65,7 @@ jobs:
             target/${{ matrix.target }}/release/gungc${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
       - name: Zip Release
-        uses: TheDoctor0/zip-release@0.6.1
+        uses: TheDoctor0/zip-release@0.7.6
         with:
           type: zip
           filename: gung-${{ matrix.platform.target }}-python-${{ matrix.python }}.zip
