@@ -13,8 +13,8 @@ jobs:
   release:
     permissions:
       contents: write
-    name: Build for ${{ matrix.target }}
-    runs-on: ${{ matrix.os }}
+    name: Build for ${{ matrix.platform.target }}
+    runs-on: ${{ matrix.platform.os }}
     strategy:
       matrix:
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
