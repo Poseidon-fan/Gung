@@ -39,4 +39,7 @@ pub struct QuicTransportParams {
 }
 
 #[derive(Debug, Args)]
-pub struct TcpTransportParams {}
+pub struct TcpTransportParams {
+    #[arg(long)]
+    pub no_delay: bool,
+}

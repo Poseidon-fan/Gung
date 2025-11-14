@@ -10,7 +10,9 @@ use tokio::{
 
 use crate::{LogicConnection, Transport};
 
-pub struct TcpTransport {}
+pub struct TcpTransport {
+    pub no_delay: bool,
+}
 
 pub struct TcpTransportClientOption {}
 
@@ -26,16 +28,25 @@ impl Transport for TcpTransport {
     type TransportServerOption = TcpTransportServerOption;
 
     fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
-        let ProtocolConfig::Tcp(_) = &config.protocol else {
+        let ProtocolConfig::Tcp(tcp_config) = &config.protocol else {
             return Err(anyhow!("Invalid protocol config"));
         };
-        Ok((Self {}, Self::TransportServerOption {}))
+        Ok((
+            Self {
+                no_delay: tcp_config.no_delay,
+            },
+            Self::TransportServerOption {},
+        ))
     }
 
     fn new_client(
-        _config: &config::client::TransportConfig,
+        config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
-        Ok((Self {}, Self::TransportClientOption {}))
+        let no_delay = match config.transport_params.tcp_params {
+            Some(ref tcp_param) => tcp_param.no_delay,
+            None => false,
+        };
+        Ok((Self { no_delay }, Self::TransportClientOption {}))
     }
 
     async fn bind<T: ToSocketAddrs + Send>(
@@ -51,8 +62,15 @@ impl Transport for TcpTransport {
         &self,
         l: &Self::Listener,
     ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
-        let (stream, addr) = l.accept().await.map_err(anyhow::Error::from)?;
-        Ok((stream, addr))
+        l.accept()
+            .await
+            .map_err(anyhow::Error::from)
+            .and_then(|(stream, addr)| {
+                if self.no_delay {
+                    stream.set_nodelay(true).map_err(anyhow::Error::from)?;
+                }
+                Ok((stream, addr))
+            })
     }
 
     async fn connect<T: ToSocketAddrs + Send>(
@@ -61,7 +79,15 @@ impl Transport for TcpTransport {
         _option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
-        TcpStream::connect(addr).await.map_err(anyhow::Error::from)
+        TcpStream::connect(addr)
+            .await
+            .map_err(anyhow::Error::from)
+            .and_then(|stream| {
+                if self.no_delay {
+                    stream.set_nodelay(true).map_err(anyhow::Error::from)?;
+                }
+                Ok(stream)
+            })
     }
 
     fn establish(

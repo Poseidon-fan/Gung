@@ -2,7 +2,7 @@ use std::{net::SocketAddr, path::PathBuf};
 
 use serde::Deserialize;
 
-use crate::default_u64;
+use crate::{default_bool, default_u64};
 
 #[derive(Debug, Deserialize)]
 pub struct TransportConfig {
@@ -34,7 +34,10 @@ pub enum ProtocolConfig {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TcpTransportConfig {}
+pub struct TcpTransportConfig {
+    #[serde(default = "default_bool::<true>")]
+    pub no_delay: bool,
+}
 
 #[derive(Debug, Deserialize, Default)]
 pub struct QuicTransportConfig {

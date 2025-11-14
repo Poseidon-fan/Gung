@@ -55,7 +55,7 @@ async fn handle_quic() -> Result<()> {
 }
 
 async fn handle_tcp() -> Result<()> {
-    let t = TcpTransport {};
+    let t = TcpTransport { no_delay: true };
     let listener = t
         .bind("127.0.0.1:7777", TcpTransportServerOption {})
         .await?;
