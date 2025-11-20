@@ -13,6 +13,8 @@ use anyhow::{Context, Result, bail};
 use futures_util::{SinkExt, StreamExt};
 use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use serde_json::{Map, Value as JsonValue};
+use tokio::signal;
+use tokio::sync::broadcast;
 use tokio::{
     io::{self, AsyncBufReadExt, BufReader},
     select, time,
@@ -77,11 +79,24 @@ impl<T: Transport + 'static> Client<T> {
                 )
             })?;
 
+        let (shutdown_tx, shutdown_rx) = broadcast::channel(1);
+        tokio::spawn(async move {
+            // Listen for the ctrl-c signal, send `ClientShutdown` command to the server.
+            if let Err(e) = signal::ctrl_c().await {
+                panic!("Failed to listen for the ctrl-c signal: {:?}", e);
+            }
+
+            if let Err(e) = shutdown_tx.send(()) {
+                panic!("Failed to send shutdown signal: {:?}", e);
+            }
+        });
+
         handle_connection::<T>(
             raw_conn,
             &self.config,
             Arc::clone(&self.transport),
             Arc::clone(&self.proxy),
+            shutdown_rx,
         )
         .await
     }
@@ -93,6 +108,7 @@ async fn handle_connection<T: Transport + 'static>(
     config: &CliConfig,
     transport: Arc<T>,
     proxy: Arc<dyn Proxy<Stream = T::Channel>>,
+    mut shutdown_rx: broadcast::Receiver<()>,
 ) -> Result<()> {
     if let Err(e) = authenticate::<T>(&mut raw_conn, config).await {
         error!("Authentication failed: {e}");
@@ -154,6 +170,10 @@ async fn handle_connection<T: Transport + 'static>(
                         }
                     }
                 }
+            }
+
+            _ = shutdown_rx.recv() => {
+                client_cmd_writer.send(ClientCommand::ClientShutdown).await?;
             }
 
             _ = time::sleep(Duration::from_secs(config.transport.keepalive_timeout)) => {

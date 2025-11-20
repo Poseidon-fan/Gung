@@ -16,6 +16,5 @@ fn main() -> Result<()> {
         .with_ansi(atty::is(atty::Stream::Stdout))
         .init();
     debug!(?cli_config);
-
     client::run_client(cli_config)
 }
