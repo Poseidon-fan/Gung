@@ -33,7 +33,7 @@ fn init(config: &RunConfig) -> Result<()> {
     }
     plugin::init(&config.plugin)?;
     // TODO(Poseidon): support allowed ports
-    port::init(None)?;
+    port::init(&config.proxy.allowed_ports)?;
     Ok(())
 }
 

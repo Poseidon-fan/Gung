@@ -1,6 +1,7 @@
 use std::{collections::HashSet, sync::LazyLock};
 
 use anyhow::{Result, bail};
+use config::server::PortRangeConfig;
 use parking_lot::Mutex;
 use rand_set::RandSet;
 
@@ -13,9 +14,17 @@ pub fn alloc(pointed_port: Option<u16>) -> Result<Port> {
     Ok(Port(port))
 }
 
-pub fn init(allowed: Option<HashSet<u16>>) -> Result<()> {
-    if let Some(allowed) = allowed {
-        PORT_MANAGER.lock().init(allowed);
+pub fn init(allowed_ports: &Option<Vec<PortRangeConfig>>) -> Result<()> {
+    if let Some(allowed) = allowed_ports {
+        PORT_MANAGER.lock().init(
+            allowed
+                .iter()
+                .flat_map(|p| match p {
+                    PortRangeConfig::Single(port) => vec![*port],
+                    PortRangeConfig::Range(start, end) => (*start..=*end).collect(),
+                })
+                .collect(),
+        );
     }
     Ok(())
 }

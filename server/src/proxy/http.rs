@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
+// use http_body_util::BodyExt;
 use hyper::{Request, Response, body::Incoming, service::service_fn};
 use hyper_util::rt::TokioIo;
 use multi_index_map::MultiIndexMap;
@@ -63,6 +64,12 @@ impl Proxy for HttpProxy {
             .send_request(req.req)
             .await
             .map_err(anyhow::Error::from);
+        // if let Ok(mut resp) = resp {
+        //     for mut chunk in resp.body_mut().frame().await.unwrap() {
+        //         let chunk = chunk.into_data().unwrap();
+        //         todo!()
+        //     }
+        // }
         req.resp_tx
             .send(resp)
             .map_err(|_| anyhow!("Failed to send response"))
