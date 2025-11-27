@@ -57,7 +57,7 @@ jobs:
             target/${{ matrix.platform.target }}/release/gungc${{ matrix.platform.os == 'windows-latest' && '.exe' || '' }}
           args: -q --best --lzma
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: gung-${{ matrix.platform.target }}-python-${{ matrix.python }}
           path: |
