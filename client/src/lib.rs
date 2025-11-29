@@ -255,7 +255,7 @@ async fn authenticate<T: Transport>(
                         new_req
                             .as_object_mut()
                             .unwrap()
-                            .insert(required_field, serde_json::from_str(line.as_str())?);
+                            .insert(required_field, JsonValue::String(line));
                     }
                     req_writer.send(AuthReq { payload: new_req }).await?;
                 }
