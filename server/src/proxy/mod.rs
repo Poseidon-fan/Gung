@@ -181,6 +181,7 @@ pub trait Gateway: 'static + Sized + Send + Sync {
                     if self.is_empty() {
                         // Release the port if there's no proxy left.
                         let _ = gateway_shutdown_tx.send(port);
+                        return;
                     }
                 }
             }
