@@ -104,6 +104,11 @@ impl AuthContext {
     fn client_addr(&self) -> String {
         self.client_addr.to_string()
     }
+
+    #[getter]
+    pub fn round(&self) -> usize {
+        self.requests.len()
+    }
 }
 
 impl AuthContext {

@@ -15,9 +15,16 @@ pub enum AuthenticatorConfig {
     Pass,
     #[serde(rename = "py_plugin")]
     PyPlugin(PyPluginAuthenticatorConfig),
+    #[serde(rename = "token")]
+    Token(TokenAuthenticatorConfig),
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PyPluginAuthenticatorConfig {
     pub file_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TokenAuthenticatorConfig {
+    pub token: String,
 }
