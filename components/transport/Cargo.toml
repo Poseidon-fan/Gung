@@ -14,6 +14,10 @@ net-mux = { workspace = true }
 rustls = { workspace = true }
 rustls-native-certs = { workspace = true }
 tokio_kcp = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }
+bytes = { workspace = true }
+tokio-util = { workspace = true }
 config = { path = "../config" }
 cert = { path = "../cert" }
 

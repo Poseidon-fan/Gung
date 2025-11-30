@@ -1,10 +1,12 @@
 mod kcp;
 mod quic;
 mod tcp;
+mod websocket;
 
 pub use kcp::*;
 pub use quic::*;
 pub use tcp::*;
+pub use websocket::*;
 
 use std::net::{SocketAddr, ToSocketAddrs};
 

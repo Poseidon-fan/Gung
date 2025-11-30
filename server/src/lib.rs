@@ -6,7 +6,7 @@ use anyhow::Result;
 use pyo3::{append_to_inittab, prelude::*};
 
 use config::server::{ProtocolConfig, RunConfig};
-use transport::{KcpTransport, QuicTransport, TcpTransport};
+use transport::{KcpTransport, QuicTransport, TcpTransport, WebsocketTransport};
 
 use crate::service::Service;
 
@@ -24,6 +24,10 @@ pub async fn run_server(run_config: RunConfig) -> Result<()> {
         }
         ProtocolConfig::Kcp(_) => {
             let (mut service, transport_option) = Service::<KcpTransport>::from(run_config)?;
+            service.run(transport_option).await?;
+        }
+        ProtocolConfig::Websocket(_) => {
+            let (mut service, transport_option) = Service::<WebsocketTransport>::from(run_config)?;
             service.run(transport_option).await?;
         }
     };

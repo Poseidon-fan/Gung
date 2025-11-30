@@ -21,7 +21,9 @@ use tokio::{
 };
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tracing::{debug, error, info, instrument};
-use transport::{KcpTransport, LogicConnection, QuicTransport, TcpTransport, Transport};
+use transport::{
+    KcpTransport, LogicConnection, QuicTransport, TcpTransport, Transport, WebsocketTransport,
+};
 
 use crate::proxy::Proxy;
 
@@ -38,6 +40,10 @@ pub async fn run_client(config: CliConfig) -> Result<()> {
         }
         TransportType::Kcp => {
             let (mut client, transport_option) = Client::<KcpTransport>::new(config)?;
+            client.run(transport_option).await?;
+        }
+        TransportType::Websocket => {
+            let (mut client, transport_option) = Client::<WebsocketTransport>::new(config)?;
             client.run(transport_option).await?;
         }
     };

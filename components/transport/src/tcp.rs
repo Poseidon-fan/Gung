@@ -97,7 +97,6 @@ impl Transport for TcpTransport {
         raw_conn: Self::RawConnection,
         is_server: bool,
     ) -> anyhow::Result<Self::Connection> {
-        // TODO(Poseidon): make here configurable
         match is_server {
             true => Ok(net_mux::Session::server(
                 raw_conn,

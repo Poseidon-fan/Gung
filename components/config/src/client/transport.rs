@@ -19,6 +19,7 @@ pub enum TransportType {
     Quic,
     Tcp,
     Kcp,
+    Websocket,
 }
 
 #[derive(Debug, Args)]

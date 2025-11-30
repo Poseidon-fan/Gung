@@ -33,6 +33,8 @@ pub enum ProtocolConfig {
     Quic(QuicTransportConfig),
     #[serde(rename = "kcp")]
     Kcp(KcpTransportConfig),
+    #[serde(rename = "websocket")]
+    Websocket(WebsocketTransportConfig),
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,6 +51,9 @@ pub struct QuicTransportConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct KcpTransportConfig {}
+
+#[derive(Debug, Deserialize)]
+pub struct WebsocketTransportConfig {}
 
 fn default_addr() -> SocketAddr {
     "0.0.0.0:7777".parse().unwrap()
