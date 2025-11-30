@@ -7,7 +7,7 @@
 > Gung is an intranet penetration tool, helping you expose a local server behind a NAT or firewall to the internet. The name has two meanings: firstly, it's an abbreviation of gungnir, the spear of Odin, the chief god in Norse mythology, symbolizing penetration and precision; secondly, it's a homophone for "Going Unblocked Network Gateway." — And the idea for this name originated from LLM.
 
 ## Features
-- **Rich Protocol Integration** The transport and proxy layers are unified and abstracted. Multiplexed long-lived connections are encapsulated at the transport layer, currently supporting TCP and QUIC. The proxy layer currently supports TCP and HTTP, with HTTP using port multiplexing based on the host.
+- **Rich Protocol Integration** The transport and proxy layers are unified and abstracted. Multiplexed long-lived connections are encapsulated at the transport layer, currently supporting TCP, QUIC, KCP and Websocket. The proxy layer currently supports TCP and HTTP, with HTTP using port multiplexing based on the host.
 - **Pluggable** Currently supports user write Python codes as an embedded plugin to authenticate. Lua / RPC plugins will be supported later. Also, the plugin will support network traffic hijacking analysis, similar to nginx.
 
 ## Quicstart
@@ -23,7 +23,7 @@ $ gungs run <server_config.toml>
 `<server_config.toml>` is the path to the configuration file; please refer to the [examples](examples/server_config/) for details. The minimal configuration items are as follows:
 ```toml
 [transport]
-# Transport type, tcp | quic
+# Transport type, tcp | quic | kcp | websocket
 type = "tcp"
 addr = "0.0.0.0:7777"
 
