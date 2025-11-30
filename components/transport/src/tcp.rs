@@ -22,7 +22,7 @@ pub struct TcpTransportServerOption {}
 impl Transport for TcpTransport {
     type Listener = TcpListener;
     type RawConnection = TcpStream;
-    type Connection = net_mux::Session;
+    type Connection = net_mux::Session<TcpStream>;
     type Channel = net_mux::Stream;
     type TransportClientOption = TcpTransportClientOption;
     type TransportServerOption = TcpTransportServerOption;

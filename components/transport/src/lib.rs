@@ -64,7 +64,9 @@ pub trait LogicConnection: Send + Sync {
 }
 
 #[async_trait]
-impl LogicConnection for net_mux::Session {
+impl<T: AsyncRead + AsyncWrite + Send + Sync + Unpin + 'static> LogicConnection
+    for net_mux::Session<T>
+{
     type Stream = net_mux::Stream;
 
     async fn accept(&self) -> anyhow::Result<Self::Stream> {
