@@ -1,6 +1,8 @@
+mod kcp;
 mod quic;
 mod tcp;
 
+pub use kcp::*;
 pub use quic::*;
 pub use tcp::*;
 
@@ -38,7 +40,7 @@ pub trait Transport: Send + Sync {
         option: Self::TransportServerOption,
     ) -> Result<Self::Listener>;
 
-    async fn accept(&self, l: &Self::Listener) -> Result<(Self::RawConnection, SocketAddr)>;
+    async fn accept(&self, l: &mut Self::Listener) -> Result<(Self::RawConnection, SocketAddr)>;
 
     async fn connect<T: ToSocketAddrs + Send>(
         &self,

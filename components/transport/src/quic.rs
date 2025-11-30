@@ -6,10 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use config::{
-    client::QuicTransportParams,
-    server::{ProtocolConfig, TransportConfig},
-};
+use config::{client::QuicTransportParams, server::ProtocolConfig};
 use quinn::{
     Endpoint,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
@@ -60,7 +57,9 @@ impl Transport for QuicTransport {
     type TransportClientOption = QuicTransportClientOption;
     type TransportServerOption = QuicTransportServerOption;
 
-    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+    fn new_server(
+        config: &config::server::TransportConfig,
+    ) -> anyhow::Result<(Self, Self::TransportServerOption)> {
         let ProtocolConfig::Quic(quic_config) = &config.protocol else {
             return Err(anyhow!("Invalid protocol config"));
         };
@@ -120,7 +119,7 @@ impl Transport for QuicTransport {
 
     async fn accept(
         &self,
-        l: &Self::Listener,
+        l: &mut Self::Listener,
     ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
         let connection = l
             .accept()

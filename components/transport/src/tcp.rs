@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use config::server::{ProtocolConfig, TransportConfig};
+use config::server::ProtocolConfig;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
@@ -27,7 +27,9 @@ impl Transport for TcpTransport {
     type TransportClientOption = TcpTransportClientOption;
     type TransportServerOption = TcpTransportServerOption;
 
-    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+    fn new_server(
+        config: &config::server::TransportConfig,
+    ) -> anyhow::Result<(Self, Self::TransportServerOption)> {
         let ProtocolConfig::Tcp(tcp_config) = &config.protocol else {
             return Err(anyhow!("Invalid protocol config"));
         };
@@ -60,7 +62,7 @@ impl Transport for TcpTransport {
 
     async fn accept(
         &self,
-        l: &Self::Listener,
+        l: &mut Self::Listener,
     ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
         l.accept()
             .await

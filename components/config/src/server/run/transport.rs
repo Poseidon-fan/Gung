@@ -31,6 +31,8 @@ pub enum ProtocolConfig {
     Tcp(TcpTransportConfig),
     #[serde(rename = "quic")]
     Quic(QuicTransportConfig),
+    #[serde(rename = "kcp")]
+    Kcp(KcpTransportConfig),
 }
 
 #[derive(Debug, Deserialize)]
@@ -44,6 +46,9 @@ pub struct QuicTransportConfig {
     pub tls_cert: Option<PathBuf>,
     pub tls_key: Option<PathBuf>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct KcpTransportConfig {}
 
 fn default_addr() -> SocketAddr {
     "0.0.0.0:7777".parse().unwrap()

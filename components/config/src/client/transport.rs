@@ -18,6 +18,7 @@ pub struct TransportConfig {
 pub enum TransportType {
     Quic,
     Tcp,
+    Kcp,
 }
 
 #[derive(Debug, Args)]

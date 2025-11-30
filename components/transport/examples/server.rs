@@ -21,7 +21,7 @@ async fn main() -> Result<()> {
 
 async fn handle_quic() -> Result<()> {
     let t = QuicTransport {};
-    let listener = t
+    let mut listener = t
         .bind(
             "127.0.0.1:7777",
             QuicTransportServerOption {
@@ -34,7 +34,7 @@ async fn handle_quic() -> Result<()> {
     println!("listener bound");
 
     loop {
-        let (mut raw_conn, remote_addr) = t.accept(&listener).await?;
+        let (mut raw_conn, remote_addr) = t.accept(&mut listener).await?;
         println!("accepted connection from {remote_addr}");
 
         raw_conn.write_all(b"write by raw_conn").await?;
@@ -56,13 +56,13 @@ async fn handle_quic() -> Result<()> {
 
 async fn handle_tcp() -> Result<()> {
     let t = TcpTransport { no_delay: true };
-    let listener = t
+    let mut listener = t
         .bind("127.0.0.1:7777", TcpTransportServerOption {})
         .await?;
     println!("listener bound");
 
     loop {
-        let (mut raw_conn, remote_addr) = t.accept(&listener).await?;
+        let (mut raw_conn, remote_addr) = t.accept(&mut listener).await?;
         println!("accepted connection from {remote_addr}");
 
         raw_conn.write_all(b"write by raw_conn").await?;

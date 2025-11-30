@@ -45,7 +45,7 @@ impl<T: Transport + 'static> Service<T> {
     }
 
     pub async fn run(&mut self, transport_option: T::TransportServerOption) -> Result<()> {
-        let listener = self
+        let mut listener = self
             .transport
             .bind(self.config.transport.addr, transport_option)
             .await
@@ -53,7 +53,7 @@ impl<T: Transport + 'static> Service<T> {
         info!("Listening on {}", self.config.transport.addr);
 
         loop {
-            match self.transport.accept(&listener).await {
+            match self.transport.accept(&mut listener).await {
                 Ok((raw_conn, client_addr)) => {
                     let authenticator = Arc::clone(&self.authenticator);
                     let transport = Arc::clone(&self.transport);
