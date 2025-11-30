@@ -8,7 +8,7 @@ use tokio::{
     net::{TcpListener, TcpStream},
 };
 
-use crate::{LogicConnection, Transport};
+use crate::Transport;
 
 pub struct TcpTransport {
     pub no_delay: bool,
@@ -22,7 +22,7 @@ pub struct TcpTransportServerOption {}
 impl Transport for TcpTransport {
     type Listener = TcpListener;
     type RawConnection = TcpStream;
-    type Connection = net_mux::Session<TcpStream>;
+    type Connection = net_mux::Session;
     type Channel = net_mux::Stream;
     type TransportClientOption = TcpTransportClientOption;
     type TransportServerOption = TcpTransportServerOption;
@@ -110,18 +110,5 @@ impl Transport for TcpTransport {
 
     async fn abolish(&self, mut raw_conn: Self::RawConnection) {
         let _ = raw_conn.shutdown().await;
-    }
-}
-
-#[async_trait]
-impl LogicConnection for net_mux::Session<TcpStream> {
-    type Stream = net_mux::Stream;
-
-    async fn accept(&self) -> anyhow::Result<Self::Stream> {
-        self.accept().await.map_err(anyhow::Error::from)
-    }
-
-    async fn open(&self) -> anyhow::Result<Self::Stream> {
-        self.open().await.map_err(anyhow::Error::from)
     }
 }

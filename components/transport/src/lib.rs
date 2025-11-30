@@ -62,3 +62,16 @@ pub trait LogicConnection: Send + Sync {
 
     async fn open(&self) -> Result<Self::Stream>;
 }
+
+#[async_trait]
+impl LogicConnection for net_mux::Session {
+    type Stream = net_mux::Stream;
+
+    async fn accept(&self) -> anyhow::Result<Self::Stream> {
+        self.accept().await.map_err(anyhow::Error::from)
+    }
+
+    async fn open(&self) -> anyhow::Result<Self::Stream> {
+        self.open().await.map_err(anyhow::Error::from)
+    }
+}

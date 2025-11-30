@@ -27,7 +27,7 @@ directories-next = "2"
 rcgen = "0.14"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3.20", features = ["env-filter"] }
-net-mux = "0.2.2"
+net-mux = "0.2.3"
 rustls-native-certs = "0.8.2"
 rand_set = "0.1.2"
 parking_lot = "0.12.5"
