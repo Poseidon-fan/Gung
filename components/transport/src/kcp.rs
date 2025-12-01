@@ -1,13 +1,19 @@
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::{
+    net::{SocketAddr, ToSocketAddrs},
+    time::Duration,
+};
 
+use anyhow::anyhow;
 use async_trait::async_trait;
-use config::server::TransportConfig;
+use config::server::{ProtocolConfig, TransportConfig};
 use tokio::io::AsyncWriteExt;
-use tokio_kcp::{KcpConfig, KcpListener, KcpStream};
+use tokio_kcp::{KcpConfig, KcpListener, KcpNoDelayConfig, KcpStream};
 
 use crate::Transport;
 
-pub struct KcpTransport {}
+pub struct KcpTransport {
+    kcp_config: KcpConfig,
+}
 
 pub struct KcpTransportClientOption {}
 
@@ -22,16 +28,43 @@ impl Transport for KcpTransport {
     type TransportClientOption = KcpTransportClientOption;
     type TransportServerOption = KcpTransportServerOption;
 
-    fn new_server(
-        _config: &TransportConfig,
-    ) -> anyhow::Result<(Self, Self::TransportServerOption)> {
-        Ok((Self {}, Self::TransportServerOption {}))
+    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+        let ProtocolConfig::Kcp(kcp_transport_config) = &config.protocol else {
+            return Err(anyhow!("Invalid protocol config"));
+        };
+        Ok((
+            Self {
+                kcp_config: KcpConfig {
+                    nodelay: KcpNoDelayConfig {
+                        nodelay: kcp_transport_config.no_delay,
+                        ..KcpNoDelayConfig::default()
+                    },
+                    session_expire: Duration::MAX,
+                    stream: true,
+                    ..KcpConfig::default()
+                },
+            },
+            Self::TransportServerOption {},
+        ))
     }
 
     fn new_client(
-        _config: &config::client::TransportConfig,
+        config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
-        Ok((Self {}, Self::TransportClientOption {}))
+        Ok((
+            Self {
+                kcp_config: KcpConfig {
+                    nodelay: KcpNoDelayConfig {
+                        nodelay: config.transport_params.no_delay.unwrap_or(true),
+                        ..KcpNoDelayConfig::default()
+                    },
+                    session_expire: Duration::MAX,
+                    stream: true,
+                    ..KcpConfig::default()
+                },
+            },
+            Self::TransportClientOption {},
+        ))
     }
 
     async fn bind<T: ToSocketAddrs + Send>(
@@ -40,8 +73,7 @@ impl Transport for KcpTransport {
         _option: Self::TransportServerOption,
     ) -> anyhow::Result<Self::Listener> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
-        let config = KcpConfig::default();
-        KcpListener::bind(config, addr)
+        KcpListener::bind(self.kcp_config, addr)
             .await
             .map_err(anyhow::Error::from)
     }
@@ -59,8 +91,7 @@ impl Transport for KcpTransport {
         _option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
-        let config = KcpConfig::default();
-        KcpStream::connect(&config, addr)
+        KcpStream::connect(&self.kcp_config, addr)
             .await
             .map_err(anyhow::Error::from)
     }

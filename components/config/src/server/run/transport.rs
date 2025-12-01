@@ -50,7 +50,10 @@ pub struct QuicTransportConfig {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct KcpTransportConfig {}
+pub struct KcpTransportConfig {
+    #[serde(default = "default_bool::<true>")]
+    pub no_delay: bool,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct WebsocketTransportConfig {}

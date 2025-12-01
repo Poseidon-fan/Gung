@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use config::{client::QuicTransportParams, server::ProtocolConfig};
+use config::server::ProtocolConfig;
 use quinn::{
     Endpoint,
     crypto::rustls::{QuicClientConfig, QuicServerConfig},
@@ -70,30 +70,12 @@ impl Transport for QuicTransport {
     fn new_client(
         config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
-        if let Some(QuicTransportParams {
-            cert_path,
-            hostname,
-        }) = &config.transport_params.quic_params
-        {
-            Ok((
-                Self {},
-                QuicTransportClientOption {
-                    cert: cert_path
-                        .as_ref()
-                        .map(|path| cert::load_certs(path))
-                        .transpose()?,
-                    hostname: hostname.clone(),
-                },
-            ))
-        } else {
-            Ok((
-                Self {},
-                QuicTransportClientOption {
-                    cert: None,
-                    hostname: None,
-                },
-            ))
-        }
+        let cert = match &config.transport_params.cert_path {
+            Some(cert_path) => Some(cert::load_certs(cert_path)?),
+            None => None,
+        };
+        let hostname = config.transport_params.hostname.clone();
+        Ok((Self {}, QuicTransportClientOption { cert, hostname }))
     }
 
     async fn bind<T: ToSocketAddrs + Send>(

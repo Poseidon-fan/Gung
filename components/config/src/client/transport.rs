@@ -26,22 +26,10 @@ pub enum TransportType {
 pub struct TransportParams {
     #[arg(long, short = 's', value_parser = parse_addr_with_default_port::<7777>)]
     pub server_addr: SocketAddr,
-    #[clap(flatten)]
-    pub quic_params: Option<QuicTransportParams>,
-    #[clap(flatten)]
-    pub tcp_params: Option<TcpTransportParams>,
-}
-
-#[derive(Debug, Args)]
-pub struct QuicTransportParams {
     #[arg(long)]
     pub cert_path: Option<PathBuf>,
     #[arg(long)]
     pub hostname: Option<String>,
-}
-
-#[derive(Debug, Args)]
-pub struct TcpTransportParams {
     #[arg(long)]
-    pub no_delay: bool,
+    pub no_delay: Option<bool>,
 }

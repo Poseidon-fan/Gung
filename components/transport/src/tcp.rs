@@ -44,10 +44,7 @@ impl Transport for TcpTransport {
     fn new_client(
         config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
-        let no_delay = match config.transport_params.tcp_params {
-            Some(ref tcp_param) => tcp_param.no_delay,
-            None => false,
-        };
+        let no_delay = config.transport_params.no_delay.unwrap_or(true);
         Ok((Self { no_delay }, Self::TransportClientOption {}))
     }
 
