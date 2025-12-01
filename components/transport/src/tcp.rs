@@ -11,14 +11,12 @@ use tokio_rustls::{TlsAcceptor, TlsConnector};
 
 use crate::{MaybeTlsStream, Transport, load_client_tls_acceptor, load_server_tls_acceptor};
 
-#[derive(Default)]
 pub struct TcpTransport {
     no_delay: bool,
     tls_acceptor: Option<TlsAcceptor>,
     tls_connector: Option<TlsConnector>,
 }
 
-#[derive(Default)]
 pub struct TcpTransportClientOption {
     hostname: Option<String>,
 }

@@ -21,11 +21,3 @@ tokio-util = { workspace = true }
 tokio-rustls = { workspace = true }
 config = { path = "../config" }
 cert = { path = "../cert" }
-
-[[example]]
-name = "transport_server"
-path = "examples/server.rs"
-
-[[example]]
-name = "transport_client"
-path = "examples/client.rs"
