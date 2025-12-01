@@ -1,28 +1,35 @@
 use std::net::{SocketAddr, ToSocketAddrs};
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use async_trait::async_trait;
 use config::server::ProtocolConfig;
 use tokio::{
     io::AsyncWriteExt,
     net::{TcpListener, TcpStream},
 };
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 
-use crate::Transport;
+use crate::{MaybeTlsStream, Transport, load_client_tls_acceptor, load_server_tls_acceptor};
 
+#[derive(Default)]
 pub struct TcpTransport {
-    pub no_delay: bool,
+    no_delay: bool,
+    tls_acceptor: Option<TlsAcceptor>,
+    tls_connector: Option<TlsConnector>,
 }
 
-pub struct TcpTransportClientOption {}
+#[derive(Default)]
+pub struct TcpTransportClientOption {
+    hostname: Option<String>,
+}
 
 pub struct TcpTransportServerOption {}
 
 #[async_trait]
 impl Transport for TcpTransport {
     type Listener = TcpListener;
-    type RawConnection = TcpStream;
-    type Connection = net_mux::Session<TcpStream>;
+    type RawConnection = MaybeTlsStream<TcpStream>;
+    type Connection = net_mux::Session<MaybeTlsStream<TcpStream>>;
     type Channel = net_mux::Stream;
     type TransportClientOption = TcpTransportClientOption;
     type TransportServerOption = TcpTransportServerOption;
@@ -36,6 +43,8 @@ impl Transport for TcpTransport {
         Ok((
             Self {
                 no_delay: tcp_config.no_delay,
+                tls_acceptor: load_server_tls_acceptor(&tcp_config.tls)?,
+                tls_connector: None,
             },
             Self::TransportServerOption {},
         ))
@@ -45,7 +54,16 @@ impl Transport for TcpTransport {
         config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
         let no_delay = config.transport_params.no_delay.unwrap_or(true);
-        Ok((Self { no_delay }, Self::TransportClientOption {}))
+        let hostname = config.transport_params.hostname.clone();
+        Ok((
+            Self {
+                no_delay,
+                tls_connector: load_client_tls_acceptor(&config.transport_params)
+                    .with_context(|| "tls failed")?,
+                tls_acceptor: None,
+            },
+            Self::TransportClientOption { hostname },
+        ))
     }
 
     async fn bind<T: ToSocketAddrs + Send>(
@@ -61,32 +79,33 @@ impl Transport for TcpTransport {
         &self,
         l: &mut Self::Listener,
     ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
-        l.accept()
-            .await
-            .map_err(anyhow::Error::from)
-            .and_then(|(stream, addr)| {
-                if self.no_delay {
-                    stream.set_nodelay(true).map_err(anyhow::Error::from)?;
-                }
-                Ok((stream, addr))
-            })
+        let (raw_stream, addr) = l.accept().await?;
+        if self.no_delay {
+            raw_stream.set_nodelay(true)?;
+        }
+        Ok((
+            MaybeTlsStream::server(raw_stream, &self.tls_acceptor).await?,
+            addr,
+        ))
     }
 
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        _option: Self::TransportClientOption,
+        option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
-        TcpStream::connect(addr)
-            .await
-            .map_err(anyhow::Error::from)
-            .and_then(|stream| {
-                if self.no_delay {
-                    stream.set_nodelay(true).map_err(anyhow::Error::from)?;
-                }
-                Ok(stream)
-            })
+        let default_hostname = addr.ip().to_string();
+        let hostname = option
+            .hostname
+            .as_ref()
+            .unwrap_or(&default_hostname)
+            .to_string();
+        let raw_stream = TcpStream::connect(addr).await?;
+        if self.no_delay {
+            raw_stream.set_nodelay(true)?;
+        }
+        Ok(MaybeTlsStream::client(raw_stream, &self.tls_connector, &hostname).await?)
     }
 
     fn establish(

@@ -5,26 +5,33 @@ use std::{
     task::{Context, Poll, ready},
 };
 
+use anyhow::{Context as AnyhowContext, anyhow};
 use async_trait::async_trait;
 use bytes::Bytes;
+use config::server::ProtocolConfig;
 use futures_util::{Sink, stream::Stream};
 use tokio::{
     io::{AsyncRead, AsyncWrite, AsyncWriteExt, ReadBuf},
     net::{TcpListener, TcpStream},
 };
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 use tokio_tungstenite::{
     WebSocketStream,
     tungstenite::{Message, protocol::WebSocketConfig},
 };
 use tokio_util::io::StreamReader;
 
-use crate::Transport;
+use crate::{MaybeTlsStream, Transport, load_client_tls_acceptor, load_server_tls_acceptor};
 
 pub struct WebsocketTransport {
     websocket_config: WebSocketConfig,
+    tls_acceptor: Option<TlsAcceptor>,
+    tls_connector: Option<TlsConnector>,
 }
 
-pub struct WebsocketTransportClientOption {}
+pub struct WebsocketTransportClientOption {
+    hostname: Option<String>,
+}
 
 pub struct WebsocketTransportServerOption {}
 
@@ -37,26 +44,45 @@ pub struct WsStream(StreamReader<WsBytesAdapter, Bytes>);
 #[async_trait]
 impl Transport for WebsocketTransport {
     type Listener = TcpListener;
-    type RawConnection = WsStream;
-    type Connection = net_mux::Session<WsStream>;
+    type RawConnection = MaybeTlsStream<WsStream>;
+    type Connection = net_mux::Session<MaybeTlsStream<WsStream>>;
     type Channel = net_mux::Stream;
     type TransportClientOption = WebsocketTransportClientOption;
     type TransportServerOption = WebsocketTransportServerOption;
 
     fn new_server(
-        _config: &config::server::TransportConfig,
+        config: &config::server::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+        let ProtocolConfig::Websocket(websocket_transport_config) = &config.protocol else {
+            return Err(anyhow!("Invalid protocol config"));
+        };
         let mut websocket_config = WebSocketConfig::default();
         websocket_config.write_buffer_size = 0;
-        Ok((Self { websocket_config }, Self::TransportServerOption {}))
+        Ok((
+            Self {
+                websocket_config,
+                tls_acceptor: load_server_tls_acceptor(&websocket_transport_config.tls)?,
+                tls_connector: None,
+            },
+            Self::TransportServerOption {},
+        ))
     }
 
     fn new_client(
-        _config: &config::client::TransportConfig,
+        config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
         let mut websocket_config = WebSocketConfig::default();
         websocket_config.write_buffer_size = 0;
-        Ok((Self { websocket_config }, Self::TransportClientOption {}))
+        let hostname = config.transport_params.hostname.clone();
+        Ok((
+            Self {
+                websocket_config,
+                tls_connector: load_client_tls_acceptor(&config.transport_params)
+                    .with_context(|| "tls failed")?,
+                tls_acceptor: None,
+            },
+            Self::TransportClientOption { hostname },
+        ))
     }
 
     async fn bind<T: ToSocketAddrs + Send>(
@@ -76,16 +102,25 @@ impl Transport for WebsocketTransport {
         let ws_raw_stream =
             tokio_tungstenite::accept_async_with_config(tcp_stream, Some(self.websocket_config))
                 .await?;
-        let ws_stream = WsStream(StreamReader::new(WsBytesAdapter(ws_raw_stream)));
-        Ok((ws_stream, addr))
+        let raw_stream = WsStream(StreamReader::new(WsBytesAdapter(ws_raw_stream)));
+        Ok((
+            MaybeTlsStream::server(raw_stream, &self.tls_acceptor).await?,
+            addr,
+        ))
     }
 
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        _option: Self::TransportClientOption,
+        option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
+        let default_hostname = addr.ip().to_string();
+        let hostname = option
+            .hostname
+            .as_ref()
+            .unwrap_or(&default_hostname)
+            .to_string();
         let tcp_stream = TcpStream::connect(addr).await?;
         let (ws_raw_stream, _) = tokio_tungstenite::client_async_with_config(
             format!("ws://{}", &addr.to_string()),
@@ -93,8 +128,8 @@ impl Transport for WebsocketTransport {
             Some(self.websocket_config),
         )
         .await?;
-        let ws_stream = WsStream(StreamReader::new(WsBytesAdapter(ws_raw_stream)));
-        Ok(ws_stream)
+        let raw_stream = WsStream(StreamReader::new(WsBytesAdapter(ws_raw_stream)));
+        Ok(MaybeTlsStream::client(raw_stream, &self.tls_connector, &hostname).await?)
     }
 
     fn establish(

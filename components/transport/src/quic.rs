@@ -63,7 +63,10 @@ impl Transport for QuicTransport {
         let ProtocolConfig::Quic(quic_config) = &config.protocol else {
             return Err(anyhow!("Invalid protocol config"));
         };
-        let (cert, key) = cert::get_cert_key(&quic_config.tls_key, &quic_config.tls_cert)?;
+        let (cert, key) = cert::get_cert_key(
+            &quic_config.tls.as_ref().map(|x| x.key.clone()),
+            &quic_config.tls.as_ref().map(|x| x.cert.clone()),
+        )?;
         Ok((Self {}, QuicTransportServerOption { cert, key }))
     }
 
@@ -134,15 +137,19 @@ impl Transport for QuicTransport {
             .to_string();
 
         let mut roots = RootCertStore::empty();
-        for cert in rustls_native_certs::load_native_certs().expect("Could not load platform certs")
-        {
-            roots.add(cert).unwrap();
-        }
-        if let Some(cert) = option.cert {
-            for cert in cert {
+        rustls_native_certs::load_native_certs()
+            .expect("Could not load platform certs")
+            .into_iter()
+            .for_each(|cert| {
                 roots.add(cert).unwrap();
-            }
-        }
+            });
+        option
+            .cert
+            .iter()
+            .flat_map(|certs| certs.iter())
+            .for_each(|cert| {
+                roots.add(cert.clone()).unwrap();
+            });
         let mut client_crypto = rustls::ClientConfig::builder()
             .with_root_certificates(roots)
             .with_no_client_auth();

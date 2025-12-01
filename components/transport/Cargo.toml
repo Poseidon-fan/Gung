@@ -18,6 +18,7 @@ tokio-tungstenite = { workspace = true }
 futures-util = { workspace = true }
 bytes = { workspace = true }
 tokio-util = { workspace = true }
+tokio-rustls = { workspace = true }
 config = { path = "../config" }
 cert = { path = "../cert" }
 

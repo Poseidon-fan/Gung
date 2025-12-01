@@ -31,7 +31,7 @@ net-mux = "0.2.4"
 rustls-native-certs = "0.8.2"
 rand_set = "0.1.2"
 parking_lot = "0.12.5"
-tokio-util = { version = "0.7.16", features = ["codec"] }
+tokio-util = { version = "0.7.16", features = ["codec", "io"] }
 futures-util = "0.3.31"
 strum = { version = "0.27.2", features = ["derive"] }
 bincode = "2.0.1"
@@ -46,3 +46,4 @@ base32 = "0.5.1"
 tokio_kcp = "0.9.8"
 tokio-tungstenite = "0.28.0"
 bytes = "1.11.0"
+tokio-rustls = { version = "0.26.4", features = ["aws-lc-rs"] }

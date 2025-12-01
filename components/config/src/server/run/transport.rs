@@ -41,22 +41,35 @@ pub enum ProtocolConfig {
 pub struct TcpTransportConfig {
     #[serde(default = "default_bool::<true>")]
     pub no_delay: bool,
+    #[serde(flatten)]
+    pub tls: Option<TlsConfig>,
 }
 
 #[derive(Debug, Deserialize, Default)]
 pub struct QuicTransportConfig {
-    pub tls_cert: Option<PathBuf>,
-    pub tls_key: Option<PathBuf>,
+    #[serde(flatten)]
+    pub tls: Option<TlsConfig>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct KcpTransportConfig {
     #[serde(default = "default_bool::<true>")]
     pub no_delay: bool,
+    #[serde(flatten)]
+    pub tls: Option<TlsConfig>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct WebsocketTransportConfig {}
+pub struct WebsocketTransportConfig {
+    #[serde(flatten)]
+    pub tls: Option<TlsConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TlsConfig {
+    pub cert: PathBuf,
+    pub key: PathBuf,
+}
 
 fn default_addr() -> SocketAddr {
     "0.0.0.0:7777".parse().unwrap()

@@ -50,10 +50,10 @@ async fn handle_quic() -> Result<()> {
 }
 
 async fn handle_tcp() -> Result<()> {
-    let t = TcpTransport { no_delay: true };
+    let t = TcpTransport::default();
 
     let mut raw_conn = t
-        .connect("127.0.0.1:7777", TcpTransportClientOption {})
+        .connect("127.0.0.1:7777", TcpTransportClientOption::default())
         .await?;
     println!("connected to server");
     raw_conn.write_all(b"write by raw_conn").await?;

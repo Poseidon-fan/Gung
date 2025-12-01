@@ -32,4 +32,6 @@ pub struct TransportParams {
     pub hostname: Option<String>,
     #[arg(long)]
     pub no_delay: Option<bool>,
+    #[arg(long)]
+    pub no_tls: bool,
 }

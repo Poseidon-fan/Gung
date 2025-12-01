@@ -40,8 +40,10 @@ fn init(config: &RunConfig) -> Result<()> {
         append_to_inittab!(gung);
     }
     plugin::init(&config.plugin)?;
-    // TODO(Poseidon): support allowed ports
     port::init(&config.proxy.allowed_ports)?;
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .unwrap();
     Ok(())
 }
 

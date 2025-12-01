@@ -3,32 +3,39 @@ use std::{
     time::Duration,
 };
 
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use async_trait::async_trait;
-use config::server::{ProtocolConfig, TransportConfig};
+use config::server::ProtocolConfig;
 use tokio::io::AsyncWriteExt;
 use tokio_kcp::{KcpConfig, KcpListener, KcpNoDelayConfig, KcpStream};
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 
-use crate::Transport;
+use crate::{MaybeTlsStream, Transport, load_client_tls_acceptor, load_server_tls_acceptor};
 
 pub struct KcpTransport {
     kcp_config: KcpConfig,
+    tls_acceptor: Option<TlsAcceptor>,
+    tls_connector: Option<TlsConnector>,
 }
 
-pub struct KcpTransportClientOption {}
+pub struct KcpTransportClientOption {
+    hostname: Option<String>,
+}
 
 pub struct KcpTransportServerOption {}
 
 #[async_trait]
 impl Transport for KcpTransport {
     type Listener = KcpListener;
-    type RawConnection = KcpStream;
-    type Connection = net_mux::Session<KcpStream>;
+    type RawConnection = MaybeTlsStream<KcpStream>;
+    type Connection = net_mux::Session<MaybeTlsStream<KcpStream>>;
     type Channel = net_mux::Stream;
     type TransportClientOption = KcpTransportClientOption;
     type TransportServerOption = KcpTransportServerOption;
 
-    fn new_server(config: &TransportConfig) -> anyhow::Result<(Self, Self::TransportServerOption)> {
+    fn new_server(
+        config: &config::server::TransportConfig,
+    ) -> anyhow::Result<(Self, Self::TransportServerOption)> {
         let ProtocolConfig::Kcp(kcp_transport_config) = &config.protocol else {
             return Err(anyhow!("Invalid protocol config"));
         };
@@ -43,6 +50,8 @@ impl Transport for KcpTransport {
                     stream: true,
                     ..KcpConfig::default()
                 },
+                tls_acceptor: load_server_tls_acceptor(&kcp_transport_config.tls)?,
+                tls_connector: None,
             },
             Self::TransportServerOption {},
         ))
@@ -51,6 +60,7 @@ impl Transport for KcpTransport {
     fn new_client(
         config: &config::client::TransportConfig,
     ) -> anyhow::Result<(Self, Self::TransportClientOption)> {
+        let hostname = config.transport_params.hostname.clone();
         Ok((
             Self {
                 kcp_config: KcpConfig {
@@ -62,8 +72,11 @@ impl Transport for KcpTransport {
                     stream: true,
                     ..KcpConfig::default()
                 },
+                tls_connector: load_client_tls_acceptor(&config.transport_params)
+                    .with_context(|| "tls failed")?,
+                tls_acceptor: None,
             },
-            Self::TransportClientOption {},
+            Self::TransportClientOption { hostname },
         ))
     }
 
@@ -82,18 +95,27 @@ impl Transport for KcpTransport {
         &self,
         l: &mut Self::Listener,
     ) -> anyhow::Result<(Self::RawConnection, SocketAddr)> {
-        l.accept().await.map_err(anyhow::Error::from)
+        let (raw_stream, addr) = l.accept().await?;
+        Ok((
+            MaybeTlsStream::server(raw_stream, &self.tls_acceptor).await?,
+            addr,
+        ))
     }
 
     async fn connect<T: ToSocketAddrs + Send>(
         &self,
         addr: T,
-        _option: Self::TransportClientOption,
+        option: Self::TransportClientOption,
     ) -> anyhow::Result<Self::RawConnection> {
         let addr = addr.to_socket_addrs()?.next().unwrap();
-        KcpStream::connect(&self.kcp_config, addr)
-            .await
-            .map_err(anyhow::Error::from)
+        let default_hostname = addr.ip().to_string();
+        let hostname = option
+            .hostname
+            .as_ref()
+            .unwrap_or(&default_hostname)
+            .to_string();
+        let raw_stream = KcpStream::connect(&self.kcp_config, addr).await?;
+        Ok(MaybeTlsStream::client(raw_stream, &self.tls_connector, &hostname).await?)
     }
 
     fn establish(

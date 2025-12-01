@@ -30,7 +30,7 @@ pub fn load_certs(cert_path: &PathBuf) -> Result<Vec<CertificateDer<'static>>> {
     }
 }
 
-fn load_cert_key(
+pub fn load_cert_key(
     key_path: &PathBuf,
     cert_path: &PathBuf,
 ) -> Result<(Vec<CertificateDer<'static>>, PrivateKeyDer<'static>)> {

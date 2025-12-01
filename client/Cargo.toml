@@ -19,6 +19,7 @@ atty = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
 http-body-util = { workspace = true }
+rustls = { workspace = true }
 config = { path = "../components/config" }
 transport = { path = "../components/transport" }
 auth = { path = "../components/auth" }
