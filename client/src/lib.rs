@@ -9,7 +9,7 @@ use auth::{
 };
 use config::client::{CliConfig, TransportType};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use futures_util::{SinkExt, StreamExt};
 use protocol::{ClientCommand, ClientCommandCodec, ServerCommand, ServerCommandCodec};
 use serde_json::{Map, Value as JsonValue};
@@ -218,15 +218,19 @@ async fn authenticate<T: Transport>(
             payload: JsonValue::Object(Map::new()),
         },
     };
-    req.payload.as_object_mut().unwrap().insert(
+    let payload = req
+        .payload
+        .as_object_mut()
+        .ok_or_else(|| anyhow!("payload must be an object"))?;
+    payload.insert(
         VERSION_AUTH_FIELD.to_string(),
         JsonValue::String(env!("CARGO_PKG_VERSION").to_string()),
     );
-    req.payload.as_object_mut().unwrap().insert(
+    payload.insert(
         PROXY_AUTH_FIELD.to_string(),
         serde_json::to_value(config.proxy.clone())?,
     );
-    req.payload.as_object_mut().unwrap().insert(
+    payload.insert(
         SERVER_IP_AUTH_FIELD.to_string(),
         JsonValue::String(
             config
