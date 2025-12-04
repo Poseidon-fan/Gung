@@ -215,7 +215,7 @@ async fn authenticate<T: Transport>(
             }
         }
         None => AuthReq {
-            payload: serde_json::from_str("{}").unwrap(),
+            payload: JsonValue::Object(Map::new()),
         },
     };
     req.payload.as_object_mut().unwrap().insert(
