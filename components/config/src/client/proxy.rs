@@ -1,4 +1,4 @@
-use clap::{Args, ValueEnum, arg};
+use clap::{Args, ValueEnum};
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use strum::{Display, EnumString};
