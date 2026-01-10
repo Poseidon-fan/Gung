@@ -34,7 +34,7 @@ parking_lot = "0.12.5"
 tokio-util = { version = "0.7.18", features = ["codec", "io"] }
 futures-util = "0.3.31"
 strum = { version = "0.27.2", features = ["derive"] }
-bincode = "2.0.1"
+bincode = "3.0.0"
 atty = "0.2.14"
 hyper = { version = "1", features = ["full"] }
 http-body-util = "0.1"
