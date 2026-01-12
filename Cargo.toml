@@ -21,7 +21,7 @@ pythonize = "0.26.0"
 async-trait = "0.1.89"
 semver = "1.0.27"
 uuid = { version = "1.19.0", features = ["v4"] }
-rustls = { version = "0.23.35", default-features = false, features = ["std"] }
+rustls = { version = "0.23.36", default-features = false, features = ["std"] }
 quinn = "0.11.9"
 directories-next = "2"
 rcgen = "0.14"
