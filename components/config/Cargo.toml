@@ -9,7 +9,5 @@ license.workspace = true
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-toml = { workspace = true }
-anyhow = { workspace = true }
 pyo3 = { workspace = true }
 strum = { workspace = true }
