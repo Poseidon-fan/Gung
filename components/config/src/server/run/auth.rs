@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 
+use crate::default_u64;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthConfig {
     #[serde(flatten)]
     pub authenticator: AuthenticatorConfig,
+    /// Timeout for a single authentication attempt (in seconds).
+    #[serde(default = "default_u64::<30>")]
+    pub timeout: u64,
 }
 
 #[derive(Debug, Deserialize)]

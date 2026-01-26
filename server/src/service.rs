@@ -1,6 +1,7 @@
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
+    time::Duration,
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -10,7 +11,7 @@ use auth::{PROXY_AUTH_FIELD, SERVER_IP_AUTH_FIELD, VERSION_AUTH_FIELD};
 use config::server::RunConfig;
 use futures_util::{SinkExt, StreamExt};
 use semver::Version;
-use tokio::io;
+use tokio::{io, time};
 use tokio_util::codec::{FramedRead, FramedWrite};
 
 use tracing::{error, info, instrument, warn};
@@ -92,7 +93,14 @@ async fn handle_connection<T: Transport + 'static>(
     transport: Arc<T>,
 ) -> Result<()> {
     // Authenticate the connection
-    let (context, conn) = match authenticate::<T>(&mut raw_conn, client_addr, authenticator).await {
+    let (context, conn) = match authenticate::<T>(
+        &mut raw_conn,
+        client_addr,
+        authenticator,
+        config.auth.timeout,
+    )
+    .await
+    {
         Ok(context) => {
             info!("Authenticated successfully");
             (context, transport.establish(raw_conn, true)?)
@@ -134,16 +142,18 @@ async fn authenticate<T: Transport>(
     raw_conn: &mut T::RawConnection,
     client_addr: SocketAddr,
     authenticator: Arc<dyn Authenticator>,
+    timeout: u64,
 ) -> Result<AuthContext> {
+    let timeout = Duration::from_secs(timeout);
     let (req_reader, resp_writer) = io::split(raw_conn);
     let mut req_reader = FramedRead::new(req_reader, AuthReqCodec);
     let mut resp_writer = FramedWrite::new(resp_writer, AuthRespCodec);
-
     // Read the first request and construct the context
-    let req = req_reader
-        .next()
+    let req = time::timeout(timeout, req_reader.next())
         .await
-        .ok_or(anyhow!("failed to read first request"))??;
+        .with_context(|| anyhow!("failed to read first request"))?
+        .transpose()?
+        .ok_or(anyhow!("failed to read first request"))?;
     let version = req.payload[VERSION_AUTH_FIELD]
         .as_str()
         .ok_or(anyhow!("version is required"))?
@@ -172,10 +182,11 @@ async fn authenticate<T: Transport>(
                 resp_writer.send(resp.clone()).await?;
                 context.responses.push(resp);
                 context.requests.push(
-                    req_reader
-                        .next()
+                    time::timeout(timeout, req_reader.next())
                         .await
-                        .ok_or(anyhow!("failed to read next request"))??,
+                        .with_context(|| anyhow!("read request timeout"))?
+                        .transpose()?
+                        .ok_or(anyhow!("read request timeout"))?,
                 );
             }
         }
