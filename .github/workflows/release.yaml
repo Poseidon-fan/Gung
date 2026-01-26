@@ -20,7 +20,7 @@ jobs:
         python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
         platform:
           - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl}
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
           - { os: macos-latest, target: x86_64-apple-darwin }
           - { os: macos-latest, target: aarch64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
@@ -41,16 +41,21 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      # Install musl toolchain for musl targets
-      - name: Install musl toolchain
-        if: matrix.platform.os == 'ubuntu-latest' && matrix.platform.target == 'x86_64-unknown-linux-musl'
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
-
-      # Build
+      # Native build normally
       - name: Install target
+        if: matrix.platform.target != 'x86_64-unknown-linux-musl'
         run: rustup target add ${{ matrix.platform.target }}
       - name: Build release
+        if: matrix.platform.target != 'x86_64-unknown-linux-musl'
         run: cargo build --release --target ${{ matrix.platform.target }}
+
+      # Cross build for musl target
+      - name: Install cross
+        if: matrix.platform.target == 'x86_64-unknown-linux-musl'
+        run: cargo install --version 0.2.5 cross
+      - name: Build release
+        if: matrix.platform.target == 'x86_64-unknown-linux-musl'
+        run: cross build --release --target ${{ matrix.platform.target }}
 
       - name: Run UPX
         continue-on-error: true
