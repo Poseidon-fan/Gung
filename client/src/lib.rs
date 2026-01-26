@@ -264,7 +264,23 @@ async fn authenticate<T: Transport>(
                         print!("{}: ", required_field);
                         std::io::stdout().flush()?;
                         let mut line = String::new();
-                        reader.read_line(&mut line).await?;
+                        select! {
+                            read_res = reader.read_line(&mut line) => {
+                                read_res?;
+                            }
+                            resp = resp_reader.next() => {
+                                match resp {
+                                    None => {
+                                        info!("Remote server closed");
+                                        bail!("remote server closed");
+                                    }
+                                    _ => {
+                                        unreachable!("unexpected behavior, there may be some internal errors");
+                                    }
+                                }
+                            }
+                        }
+
                         let line = line.trim().to_string();
                         new_req
                             .as_object_mut()
