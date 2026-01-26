@@ -36,10 +36,12 @@ pub async fn run_server(run_config: RunConfig) -> Result<()> {
 }
 
 fn init(config: &RunConfig) -> Result<()> {
-    if config.plugin.python.is_some() {
-        append_to_inittab!(gung);
+    if let Some(plugin) = &config.plugin {
+        if plugin.python.is_some() {
+            append_to_inittab!(gung);
+        }
+        plugin::init(plugin)?;
     }
-    plugin::init(&config.plugin)?;
     port::init(&config.proxy.allowed_ports)?;
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()

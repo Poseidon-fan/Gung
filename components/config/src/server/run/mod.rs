@@ -15,5 +15,5 @@ pub struct RunConfig {
     pub transport: TransportConfig,
     pub auth: AuthConfig,
     pub proxy: ProxyConfig,
-    pub plugin: PluginConfig,
+    pub plugin: Option<PluginConfig>,
 }
