@@ -41,6 +41,11 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
+      # Install musl toolchain for musl targets
+      - name: Install musl toolchain
+        if: matrix.platform.os == 'ubuntu-latest' && matrix.platform.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
       # Build
       - name: Install target
         run: rustup target add ${{ matrix.platform.target }}
