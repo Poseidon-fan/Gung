@@ -7,7 +7,7 @@ use hyper::{Request, Response, body::Incoming, service::service_fn};
 use hyper_util::rt::TokioIo;
 use multi_index_map::MultiIndexMap;
 use parking_lot::RwLock;
-use rand::RngCore;
+use rand::Rng;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::{TcpListener, TcpStream},
