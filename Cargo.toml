@@ -26,7 +26,7 @@ quinn = "0.11.9"
 directories-next = "2"
 rcgen = "0.14"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 net-mux = "0.2.4"
 rustls-native-certs = "0.8.3"
 rand_set = "0.1.2"
