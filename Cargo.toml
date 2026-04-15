@@ -41,7 +41,7 @@ http-body-util = "0.1"
 hyper-util = { version = "0.1", features = ["full"] }
 multi_index_map = "0.15.1"
 url = "2.5.8"
-rand = "0.10.0"
+rand = "0.10.1"
 base32 = "0.5.1"
 tokio_kcp = "0.9.8"
 tokio-tungstenite = "0.29.0"
