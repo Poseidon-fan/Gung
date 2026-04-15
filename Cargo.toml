@@ -20,7 +20,7 @@ pyo3 = { version = "0.26.0", features = ["auto-initialize", "serde"] }
 pythonize = "0.26.0"
 async-trait = "0.1.89"
 semver = "1.0.28"
-uuid = { version = "1.22.0", features = ["v4"] }
+uuid = { version = "1.23.0", features = ["v4"] }
 rustls = { version = "0.23.37", default-features = false, features = ["std"] }
 quinn = "0.11.9"
 directories-next = "2"
